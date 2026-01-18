@@ -21,6 +21,8 @@ Create Docker Compose configuration with PostgreSQL, FastAPI backend, and Vue.js
 - [x] Created Phase 1 task files (T001-T005)
 - [x] Created implementation tracking files (decisions, changelog, learnings)
 - [x] Created project source directory structure
+- [x] Initialized git repository
+- [x] Pushed to GitHub: https://github.com/zhyndalf/perfwatch
 
 ---
 
@@ -37,10 +39,13 @@ Create Docker Compose configuration with PostgreSQL, FastAPI backend, and Vue.js
 
 ## Resume Instructions
 
-To continue with T002:
-1. Read this file (you're doing that now!)
-2. Read [T002-docker-setup.md](./04-tasks/phase-1/T002-docker-setup.md) for full details
-3. Start creating Docker configuration files
+**To continue PerfWatch development:**
+1. Say "Let's continue perfwatch" or similar
+2. I'll read this file and the T002 task file
+3. We'll start implementing Docker setup
+
+**Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
+**GitHub**: https://github.com/zhyndalf/perfwatch
 
 ---
 
@@ -52,12 +57,13 @@ None currently.
 
 ## Session Notes
 
-**T001 Completed** (2025-01-18):
-- Full SDD structure created with 30+ documentation files
+**Session 1** (2025-01-18):
+- T001 COMPLETED: Full SDD structure created with 25+ documentation files
+- Git initialized and pushed to GitHub
 - All Phase 1 task files have detailed implementation guidance
 - Project directory structure ready for code
 
 **Next Session Focus**:
-- Docker Compose setup
-- Basic Dockerfiles
+- T002: Docker Compose setup
+- Basic Dockerfiles for backend/frontend
 - Environment configuration
