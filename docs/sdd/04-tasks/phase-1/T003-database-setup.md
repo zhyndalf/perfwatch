@@ -7,7 +7,7 @@
 | **Phase** | 1 - Foundation |
 | **Estimated Time** | 2-3 hours |
 | **Dependencies** | T002 (Docker Setup) |
-| **Status** | ⬜ NOT_STARTED |
+| **Status** | ✅ COMPLETED |
 
 ---
 
@@ -39,26 +39,26 @@ Reference documents:
 ## Acceptance Criteria
 
 ### SQLAlchemy Setup
-- [ ] `database.py` with async engine and session
-- [ ] Base model class configured
-- [ ] Connection pooling appropriate
+- [x] `database.py` with async engine and session
+- [x] Base model class configured
+- [x] Connection pooling appropriate
 
 ### Models
-- [ ] `User` model with password hash
-- [ ] `MetricsSnapshot` model with JSONB
-- [ ] `Config` model for settings
-- [ ] `ArchivePolicy` model for retention
+- [x] `User` model with password hash
+- [x] `MetricsSnapshot` model with JSONB
+- [x] `Config` model for settings
+- [x] `ArchivePolicy` model for retention
 
 ### Alembic
-- [ ] `alembic.ini` configured
-- [ ] `env.py` for async migrations
-- [ ] Initial migration created
-- [ ] Migration runs successfully
+- [x] `alembic.ini` configured
+- [x] `env.py` for async migrations
+- [x] Initial migration created
+- [x] Migration runs successfully
 
 ### Initialization
-- [ ] Default admin user created
-- [ ] Default config values set
-- [ ] Init script for container startup
+- [x] Default admin user created
+- [x] Default config values set
+- [x] Init script for container startup
 
 ---
 
@@ -220,10 +220,37 @@ asyncio.run(test())
 
 ## Implementation Notes
 
-*To be filled during implementation*
+- Used SQLAlchemy 2.0 async with `async_sessionmaker` (newer API than original spec)
+- Used `DeclarativeBase` class instead of `declarative_base()` function
+- Models use modern `Mapped` type hints with `mapped_column()`
+- Used bcrypt directly instead of passlib due to compatibility issues with newer bcrypt versions
+- Added test suite with 26 tests covering models, database, API, and init_db
+- Tests use PostgreSQL test database (`perfwatch_test`) for proper JSONB support
+- Added `/api/db-status` endpoint for database connection verification
 
 ---
 
 ## Files Created/Modified
 
-*To be filled during implementation*
+| File | Action |
+|------|--------|
+| `backend/app/config.py` | Created - Application settings |
+| `backend/app/database.py` | Created - Async engine and session |
+| `backend/app/models/__init__.py` | Created - Model exports |
+| `backend/app/models/user.py` | Created - User model |
+| `backend/app/models/metrics.py` | Created - MetricsSnapshot model |
+| `backend/app/models/config.py` | Created - Config model |
+| `backend/app/models/archive.py` | Created - ArchivePolicy model |
+| `backend/app/init_db.py` | Created - Default data initialization |
+| `backend/app/main.py` | Modified - Added lifespan, db-status endpoint |
+| `backend/alembic.ini` | Created - Alembic configuration |
+| `backend/alembic/env.py` | Created - Async migration environment |
+| `backend/alembic/script.py.mako` | Created - Migration template |
+| `backend/alembic/versions/001_initial.py` | Created - Initial migration |
+| `backend/tests/conftest.py` | Created - Test fixtures |
+| `backend/tests/test_models.py` | Created - Model tests |
+| `backend/tests/test_database.py` | Created - Database tests |
+| `backend/tests/test_api.py` | Created - API tests |
+| `backend/tests/test_init_db.py` | Created - Init script tests |
+| `backend/pyproject.toml` | Modified - Added dev dependencies, pytest config |
+| `backend/Dockerfile` | Modified - Install dev dependencies |

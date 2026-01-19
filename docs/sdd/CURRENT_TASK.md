@@ -1,39 +1,40 @@
 # Current Task
 
 > **Status**: READY_FOR_NEXT
-> **Task ID**: T002
-> **Task File**: [T002-docker-setup.md](./04-tasks/phase-1/T002-docker-setup.md)
+> **Task ID**: T004
+> **Task File**: [T004-auth-backend.md](./04-tasks/phase-1/T004-auth-backend.md)
 
 ---
 
 ## Quick Context
 
-Create Docker Compose configuration with PostgreSQL, FastAPI backend, and Vue.js frontend services. This establishes the containerized development environment.
+Implement JWT-based authentication for the backend API with login endpoint and protected routes.
 
 ---
 
-## What's Done (Previous Task T001)
+## What's Done (Previous Task T003)
 
-- [x] Created complete SDD directory structure
-- [x] Created all constitution documents (vision, principles, glossary)
-- [x] Created all specification documents (architecture, api, data-model, metrics, ui)
-- [x] Created all plan documents (roadmap, phase 1-4)
-- [x] Created Phase 1 task files (T001-T005)
-- [x] Created implementation tracking files (decisions, changelog, learnings)
-- [x] Created project source directory structure
-- [x] Initialized git repository
-- [x] Pushed to GitHub: https://github.com/zhyndalf/perfwatch
+- [x] Created `backend/app/config.py` for application settings
+- [x] Created `backend/app/database.py` with async engine and session
+- [x] Created SQLAlchemy models: User, MetricsSnapshot, Config, ArchivePolicy
+- [x] Configured Alembic for async migrations
+- [x] Created initial migration (001_initial.py)
+- [x] Created init_db.py with default admin user, config, and archive policy
+- [x] Added comprehensive test suite (26 tests) following TDD practices
+- [x] Updated Dockerfile to include dev dependencies for testing
+- [x] All tests passing
+- [x] Migrations verified working with real PostgreSQL
 
 ---
 
-## What's Next (T002)
+## What's Next (T004)
 
-1. Create `docker-compose.yml` with all three services
-2. Create `backend/Dockerfile` (Python 3.11)
-3. Create `frontend/Dockerfile` (Node + Nginx)
-4. Create `.env.example` with configuration
-5. Create basic `README.md` for the project
-6. Verify `docker-compose up` works
+1. Create JWT authentication utilities
+2. Create auth router with login endpoint
+3. Implement password verification
+4. Create dependency for protected routes
+5. Add user management endpoints
+6. Write tests for auth functionality
 
 ---
 
@@ -41,8 +42,8 @@ Create Docker Compose configuration with PostgreSQL, FastAPI backend, and Vue.js
 
 **To continue PerfWatch development:**
 1. Say "Let's continue perfwatch" or similar
-2. I'll read this file and the T002 task file
-3. We'll start implementing Docker setup
+2. I'll read this file and the T004 task file
+3. We'll start implementing authentication
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -63,7 +64,25 @@ None currently.
 - All Phase 1 task files have detailed implementation guidance
 - Project directory structure ready for code
 
+**Session 2** (2025-01-19):
+- T002 COMPLETED: Docker setup complete
+- Installed Docker Engine and Docker Compose on Ubuntu 24.04
+- Created docker-compose.yml with PostgreSQL, FastAPI, Vue.js services
+- Created Dockerfiles for backend and frontend
+- Created basic Vue.js landing page with backend status check
+- Created project README.md
+- Verified all services: `docker compose up` works, all endpoints responding
+
+**Session 3** (2025-01-19):
+- T003 COMPLETED: Database setup complete
+- Created SQLAlchemy 2.0 async models with modern type hints
+- Configured Alembic for async migrations
+- Created 26 tests following TDD principles
+- Fixed bcrypt compatibility issue (used bcrypt directly instead of passlib)
+- All tests passing, migrations verified, default data initialized
+
 **Next Session Focus**:
-- T002: Docker Compose setup
-- Basic Dockerfiles for backend/frontend
-- Environment configuration
+- T004: Auth Backend
+- JWT authentication
+- Login endpoint
+- Protected routes
