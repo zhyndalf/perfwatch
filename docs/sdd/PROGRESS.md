@@ -39,7 +39,7 @@ Total                  [█████░░░░░] 50%  (11/22 tasks)
 | ✅ | T009 | Network Collector | 2-3 hrs |
 | ✅ | T010 | Disk Collector | 2-3 hrs |
 | ✅ | T011 | WebSocket Streaming | 2-3 hrs |
-| ⬜ | T012 | Dashboard UI | 3-4 hrs |
+| ⏳ | T012 | Dashboard UI | 3-4 hrs |
 
 **Current**: T012 - Dashboard UI
 
@@ -86,7 +86,7 @@ Total                  [█████░░░░░] 50%  (11/22 tasks)
 |--------|-------|
 | Total Tasks | 22 |
 | Completed | 11 |
-| In Progress | 0 |
+| In Progress | 1 |
 | Blocked | 0 |
 | Remaining | 11 |
 | Est. Total Hours | ~52 |

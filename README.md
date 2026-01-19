@@ -64,7 +64,8 @@ flowchart TB
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
     class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011 done
-    class T012,T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
+    class T012 progress
+    class T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
 ```
 
 | Phase | Status | Tasks |

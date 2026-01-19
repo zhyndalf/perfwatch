@@ -1,35 +1,31 @@
 # Current Task
 
-> **Status**: COMPLETED
-> **Task ID**: T011
-> **Task Name**: WebSocket Streaming
+> **Status**: IN_PROGRESS
+> **Task ID**: T012
+> **Task Name**: Dashboard UI
 
 ---
 
 ## Quick Context
 
-WebSocket streaming endpoint implemented and verified (CPU/Memory/Network/Disk every 5s, JWT via query). Automated tests added and passing; manual WebSocket check returned live metrics.
+Implement the real-time dashboard UI that consumes `/api/ws/metrics` and renders CPU, Memory, Network, and Disk charts. Use the existing auth store JWT for WS connection, follow the dark-theme UI spec, and ensure responsive (desktop 2-col, mobile stacked) layout with connection status.
 
 ---
 
-## What's Done (T011 - Partial)
+## What's Done (context)
 
-- [x] Created `backend/app/api/websocket.py` with WebSocket endpoint
-- [x] Implemented `ConnectionManager` class for handling multiple clients
-- [x] Implemented JWT authentication for WebSocket via query parameter (`?token=<jwt>`)
-- [x] Integrated `MetricsAggregator` with all 4 collectors (CPU, Memory, Network, Disk)
-- [x] Added broadcast callback for 5-second metric streaming
-- [x] Registered WebSocket router in `main.py`
-- [x] Added WebSocket unit tests (`backend/tests/test_websocket.py`) for auth missing/invalid token, ping/pong, metrics broadcast (single/multi-client), and aggregator lifecycle; executed via Docker (6 passed)
-- [x] Updated README.md and progress files; total tests now 131; Phase 2 at 86%, overall 50%
-- [x] Manual WebSocket verification via Docker: received metrics message with cpu/memory/network/disk keys
+- T011 completed: WebSocket endpoint built, tested (6 tests) and manually verified; docs updated; overall progress 50%, Phase 2 at 86%
+- Created T012 task file with requirements/acceptance criteria
+- Implemented frontend WebSocket integration with auto-reconnect, status chip, and last-update timestamp
+- Built dashboard UI with ECharts for CPU/Memory/Network/Disk, rolling history, responsive layout, and N/A-safe rendering
 
 ---
 
 ## What's Next
 
-1. Start T012 (Dashboard UI) — hook the frontend to the WebSocket stream and build real-time charts
-2. Create/refresh T012 task file (phase-2) before implementation if needed
+1. Manual QA of dashboard and responsive behavior; tune chart options if needed
+2. Update docs/README/PROGRESS upon completion of T012 deliverables
+3. Consider adding lightweight front-end checks (lint/build) if not already in CI
 
 ---
 
@@ -37,47 +33,18 @@ WebSocket streaming endpoint implemented and verified (CPU/Memory/Network/Disk e
 
 | File | Action | Description |
 |------|--------|-------------|
-| `backend/app/api/websocket.py` | Created | WebSocket endpoint with ConnectionManager |
-| `backend/app/main.py` | Modified | Added websocket_router import and registration |
-
----
-
-## WebSocket API Details
-
-**Endpoint**: `ws://localhost:8000/api/ws/metrics?token=<jwt_token>`
-
-**Server sends every 5 seconds**:
-```json
-{
-  "type": "metrics",
-  "timestamp": "2026-01-19T14:30:05Z",
-  "data": {
-    "cpu": { ... },
-    "memory": { ... },
-    "network": { ... },
-    "disk": { ... }
-  }
-}
-```
-
-**Client can send**:
-```json
-{ "type": "ping" }
-```
-
-**Server responds**:
-```json
-{ "type": "pong" }
-```
+| `docs/sdd/04-tasks/phase-2/T012-dashboard-ui.md` | Updated | Task plan + current completion notes |
+| `frontend/src/stores/metrics.js` | Added | Pinia store for WebSocket metrics, history, status |
+| `frontend/src/views/Dashboard.vue` | Updated | Real-time dashboard layout and charts |
 
 ---
 
 ## Resume Instructions
 
 **To continue PerfWatch development:**
-1. Begin T012 (Dashboard UI)
-2. If absent, add `docs/sdd/04-tasks/phase-2/T012-dashboard-ui.md` from template/backlog and outline acceptance criteria
-3. Implement frontend WebSocket consumption and charts per specs
+1. Implement T012 per `docs/sdd/04-tasks/phase-2/T012-dashboard-ui.md`
+2. Frontend: connect to `/api/ws/metrics` with JWT, add status chip/last-update, build charts for CPU/Memory/Network/Disk (ECharts), handle reconnect/errors, ensure responsive layout
+3. Update docs/README/PROGRESS after UI work and any new tests
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -117,11 +84,4 @@ None currently.
 - T011 COMPLETED: WebSocket Streaming (implementation, tests, manual verification)
 
 **Current Session Work**:
-- Created WebSocket endpoint with JWT auth
-- Created ConnectionManager for multi-client support
-- Integrated MetricsAggregator for 5-second broadcasts
-- Merged dev to main branch and pushed
-
-**Next**:
-- Complete T011 (write tests, update docs)
-- T012: Dashboard UI with real-time charts
+- Starting T012: plan dashboard UI implementation and wire WebSocket data to charts
