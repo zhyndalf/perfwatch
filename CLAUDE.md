@@ -14,7 +14,21 @@
 4. **Run migrations** (if needed): `docker compose exec backend alembic upgrade head`
 5. **Continue** from "What's Next" section
 
-**Current Task**: T004 - Auth Backend ([PROGRESS.md](docs/sdd/PROGRESS.md))
+**Current Task**: T011 - WebSocket Streaming ([PROGRESS.md](docs/sdd/PROGRESS.md))
+
+---
+
+## IMPORTANT RULES
+
+### Before Git Commit and Push
+
+**ALWAYS update `README.md` before committing and pushing changes:**
+- Update the progress percentage and current task
+- Update the Mermaid diagram with completed tasks
+- Update test counts and any new features
+- Keep the README in sync with actual project state
+
+This ensures the GitHub repository always shows accurate project status.
 
 ---
 
@@ -22,11 +36,12 @@
 
 | Aspect | Choice |
 |--------|--------|
-| Frontend | Vue.js 3 + ECharts |
+| Frontend | Vue.js 3 + Pinia + TailwindCSS + ECharts |
 | Backend | FastAPI + WebSocket |
 | Database | PostgreSQL 15 (JSONB) |
 | ORM | SQLAlchemy 2.0 (async) |
-| Auth | JWT (python-jose) |
+| Auth | JWT (python-jose) + bcrypt |
+| Collectors | psutil (CPU, Memory, Network, Disk) |
 | Deployment | Docker Compose |
 
 ---
@@ -83,6 +98,33 @@
 
 ---
 
+## Collectors
+
+The metrics collection system uses psutil with graceful degradation:
+
+| Collector | File | Key Metrics |
+|-----------|------|-------------|
+| CPU | `collectors/cpu.py` | usage_percent, per_core, load_avg, frequency |
+| Memory | `collectors/memory.py` | total, available, used, swap |
+| Network | `collectors/network.py` | bytes_per_sec, interfaces, connections |
+| Disk | `collectors/disk.py` | partitions, io read/write rates |
+
+**Usage:**
+```python
+from app.collectors import CPUCollector, MemoryCollector, NetworkCollector, DiskCollector, MetricsAggregator
+
+aggregator = MetricsAggregator(collectors=[
+    CPUCollector(),
+    MemoryCollector(),
+    NetworkCollector(),
+    DiskCollector(),
+])
+
+snapshot = await aggregator.collect_all()
+```
+
+---
+
 ## Data Model Quick Reference
 
 | Table | Purpose | Key Fields |
@@ -119,7 +161,7 @@ docker compose logs -f backend
 # Run migrations
 docker compose exec backend alembic upgrade head
 
-# Run tests (26 tests)
+# Run tests (125 tests)
 docker compose run --rm backend pytest tests/ -v
 
 # Access database
@@ -139,10 +181,17 @@ perfwatch/
 │   ├── main.py            # Entry point
 │   ├── config.py          # Settings (pydantic-settings)
 │   ├── database.py        # Async SQLAlchemy
-│   └── models/            # User, MetricsSnapshot, Config, ArchivePolicy
-├── backend/tests/         # Test suite (26 tests)
+│   ├── collectors/        # Metrics collectors (CPU, Memory, Network, Disk)
+│   ├── models/            # User, MetricsSnapshot, Config, ArchivePolicy
+│   └── schemas/           # Pydantic schemas including metrics
+├── backend/tests/         # Test suite (125 tests)
 ├── backend/alembic/       # Database migrations
 ├── frontend/src/          # Vue.js application
+│   ├── api/               # Axios client with JWT
+│   ├── router/            # Vue Router with auth guards
+│   ├── stores/            # Pinia stores (auth)
+│   ├── views/             # Login, Dashboard, History, Settings
+│   └── components/        # Layout, Header
 ├── docs/sdd/              # Specification Driven Development docs
 └── docker-compose.yml
 ```
@@ -156,6 +205,7 @@ perfwatch/
 3. **Async everything** - `asyncpg`, `async_sessionmaker`, async fixtures
 4. **PostgreSQL for tests** - Tests use `perfwatch_test` database (JSONB requires PG)
 5. **TDD approach** - Write tests alongside implementation
+6. **Graceful degradation** - Collectors return None for unavailable metrics
 
 ---
 
@@ -181,6 +231,18 @@ async with AsyncSessionLocal() as session:
     users = result.scalars().all()
 ```
 
+### Collector Pattern
+```python
+from app.collectors.base import BaseCollector
+
+class MyCollector(BaseCollector):
+    name = "my_collector"
+
+    async def collect(self) -> Dict[str, Any]:
+        # Collect metrics
+        return {"metric": value}
+```
+
 ---
 
 ## URLs & Credentials
@@ -201,6 +263,7 @@ async with AsyncSessionLocal() as session:
 2. **Tests use separate database** - `perfwatch_test`, not `perfwatch`
 3. **Docker build may fail on network issues** - Just retry
 4. **pydantic v2 deprecation warning** - Using class-based Config, should migrate to ConfigDict
+5. **CPU percent needs priming** - First call returns 0, subsequent calls accurate
 
 ---
 
@@ -209,7 +272,7 @@ async with AsyncSessionLocal() as session:
 ```
 docs/sdd/
 ├── CURRENT_TASK.md        ← Start here when resuming
-├── PROGRESS.md            ← Overall progress dashboard (14% complete)
+├── PROGRESS.md            ← Overall progress dashboard (45% complete)
 ├── 01-constitution/       ← WHY: vision, principles, glossary
 ├── 02-specification/      ← WHAT: architecture, API, data model
 ├── 03-plan/               ← WHEN: roadmap, phase plans
