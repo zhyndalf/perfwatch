@@ -8,25 +8,27 @@ Real-time system performance monitoring web application.
 - **Interactive Charts**: Beautiful visualizations powered by ECharts
 - **Process Monitoring**: Track individual process resource usage
 - **WebSocket Updates**: Live data streaming to the browser
+- **JWT Authentication**: Secure login with token-based auth
+- **Dark Theme**: Modern dark UI with TailwindCSS
 - **Dockerized**: Easy setup with Docker Compose
 
 ## Development Progress
 
-> **18% Complete** (4/22 tasks) | Current: T005 - Vue Frontend Base
+> **23% Complete** (5/22 tasks) | Current: T006 - Collector Base
 
 ```mermaid
 flowchart TB
-    subgraph P1["Phase 1: Foundation (80%)"]
+    subgraph P1["Phase 1: Foundation (100%) ✅"]
         T001["✅ T001<br/>SDD Scaffold"]
         T002["✅ T002<br/>Docker Setup"]
         T003["✅ T003<br/>Database"]
         T004["✅ T004<br/>Auth Backend"]
-        T005["⏳ T005<br/>Vue Base"]
+        T005["✅ T005<br/>Vue Base"]
         T001 --> T002 --> T003 --> T004 --> T005
     end
 
     subgraph P2["Phase 2: Core Metrics (0%)"]
-        T006["⬜ T006<br/>Collector Base"]
+        T006["⏳ T006<br/>Collector Base"]
         T007["⬜ T007<br/>CPU"]
         T008["⬜ T008<br/>Memory"]
         T009["⬜ T009<br/>Network"]
@@ -61,14 +63,14 @@ flowchart TB
     classDef progress fill:#f39c12,stroke:#e67e22,color:#fff
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
-    class T001,T002,T003,T004 done
-    class T005 progress
-    class T006,T007,T008,T009,T010,T011,T012,T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
+    class T001,T002,T003,T004,T005 done
+    class T006 progress
+    class T007,T008,T009,T010,T011,T012,T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
 ```
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
-| Phase 1: Foundation | 80% | 4/5 |
+| Phase 1: Foundation | ✅ 100% | 5/5 |
 | Phase 2: Core Metrics | 0% | 0/7 |
 | Phase 3: Advanced | 0% | 0/5 |
 | Phase 4: Polish | 0% | 0/5 |
@@ -79,9 +81,10 @@ flowchart TB
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | Vue.js 3 + ECharts |
-| Backend | FastAPI + WebSocket |
-| Database | PostgreSQL |
+| Frontend | Vue.js 3 + Pinia + TailwindCSS + ECharts |
+| Backend | FastAPI + WebSocket + SQLAlchemy 2.0 |
+| Database | PostgreSQL 15 (JSONB) |
+| Auth | JWT (python-jose) + bcrypt |
 | Deployment | Docker Compose |
 
 ## Quick Start
@@ -106,28 +109,43 @@ flowchart TB
 
 3. Start all services:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
-4. Access the application:
+4. Run database migrations:
+   ```bash
+   docker compose exec backend alembic upgrade head
+   ```
+
+5. Access the application:
    - **Frontend**: http://localhost:3000
    - **Backend API**: http://localhost:8000
    - **API Docs**: http://localhost:8000/docs
+
+### Default Credentials
+
+- **Username**: `admin`
+- **Password**: `admin123`
 
 ### Verify Setup
 
 ```bash
 # Check service status
-docker-compose ps
+docker compose ps
 
 # Check logs
-docker-compose logs -f
+docker compose logs -f
 
 # Test backend health
 curl http://localhost:8000/health
 
+# Test login
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
 # Stop all services
-docker-compose down
+docker compose down
 ```
 
 ## Development
@@ -138,15 +156,34 @@ docker-compose down
 perfwatch/
 ├── backend/           # FastAPI backend
 │   ├── app/           # Application code
+│   │   ├── api/       # API endpoints
+│   │   ├── models/    # SQLAlchemy models
+│   │   ├── schemas/   # Pydantic schemas
+│   │   └── services/  # Business logic
 │   ├── alembic/       # Database migrations
-│   └── tests/         # Backend tests
+│   └── tests/         # Backend tests (51 tests)
 ├── frontend/          # Vue.js frontend
-│   └── src/           # Source code
+│   └── src/
+│       ├── api/       # Axios client
+│       ├── components/# Vue components
+│       ├── router/    # Vue Router
+│       ├── stores/    # Pinia stores
+│       ├── styles/    # TailwindCSS
+│       └── views/     # Page components
 ├── docs/              # Documentation
 │   └── sdd/           # Specification Driven Development docs
-├── scripts/           # Utility scripts
 ├── docker-compose.yml # Service orchestration
 └── .env.example       # Environment template
+```
+
+### Running Tests
+
+```bash
+# Run backend tests
+docker compose run --rm backend pytest tests/ -v
+
+# Run with coverage
+docker compose run --rm backend pytest tests/ --cov=app
 ```
 
 ### Running Locally (Development)
@@ -164,6 +201,15 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## API Endpoints
+
+| Endpoint | Method | Description | Auth |
+|----------|--------|-------------|------|
+| `/api/auth/login` | POST | Get JWT token | No |
+| `/api/auth/me` | GET | Current user info | Yes |
+| `/api/auth/password` | PUT | Change password | Yes |
+| `/health` | GET | Health check | No |
 
 ## Documentation
 

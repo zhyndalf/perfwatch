@@ -1,38 +1,44 @@
 # Current Task
 
-> **Status**: READY_FOR_NEXT
-> **Task ID**: T005
-> **Task File**: [T005-vue-frontend.md](./04-tasks/phase-1/T005-vue-frontend.md)
+> **Status**: READY_FOR_IMPLEMENTATION
+> **Task ID**: T006
+> **Task File**: [T006-collector-base.md](./04-tasks/phase-2/T006-collector-base.md)
 
 ---
 
 ## Quick Context
 
-Set up Vue.js 3 frontend with router, Pinia state management, and basic login page.
+Create the base collector infrastructure using psutil for system metrics, with an aggregator that coordinates multiple collectors.
 
 ---
 
-## What's Done (Previous Task T004)
+## What's Done (Previous Task T005)
 
-- [x] Created `backend/app/services/auth.py` with bcrypt password hashing and JWT tokens
-- [x] Created `backend/app/api/auth.py` with login, me, password endpoints
-- [x] Created `backend/app/api/deps.py` with get_current_user dependency
-- [x] Created Pydantic schemas for auth (LoginRequest, TokenResponse, PasswordChangeRequest)
-- [x] Created UserResponse schema with Pydantic v2 ConfigDict
-- [x] Registered auth router in main.py
-- [x] Added 25 comprehensive tests (51 total tests now)
-- [x] All endpoints verified with curl commands
+- [x] Added pinia, tailwindcss, postcss, autoprefixer to package.json
+- [x] Created tailwind.config.js with dark theme colors
+- [x] Created postcss.config.js
+- [x] Added @ alias in vite.config.js
+- [x] Created axios client with JWT interceptors (src/api/index.js)
+- [x] Created Pinia auth store (src/stores/auth.js)
+- [x] Created Vue Router with navigation guards (src/router/index.js)
+- [x] Created Login.vue with form validation
+- [x] Created Dashboard.vue, History.vue, Settings.vue placeholders
+- [x] Created Layout.vue and Header.vue components
+- [x] Created main.css with Tailwind styles
+- [x] Fixed login API (changed from form-urlencoded to JSON body)
+- [x] All auth flow verified working
+
+**Phase 1 COMPLETE!** Foundation is ready.
 
 ---
 
-## What's Next (T005)
+## What's Next (T006)
 
-1. Set up Vue Router with protected routes
-2. Set up Pinia for state management
-3. Create login page with form
-4. Create authenticated layout
-5. Implement JWT token storage and API interceptors
-6. Connect to backend auth endpoints
+1. Create `backend/app/collectors/` package
+2. Implement `BaseCollector` abstract class
+3. Implement `MetricsAggregator` class
+4. Create Pydantic schemas for metrics
+5. Write unit tests for collector infrastructure
 
 ---
 
@@ -40,8 +46,8 @@ Set up Vue.js 3 frontend with router, Pinia state management, and basic login pa
 
 **To continue PerfWatch development:**
 1. Say "Let's continue perfwatch" or similar
-2. I'll read this file and the T005 task file
-3. We'll start implementing the Vue frontend base
+2. I'll read this file and the T006 task file
+3. We'll implement the collector base infrastructure
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -87,8 +93,17 @@ None currently.
 - Added 25 new tests (51 total)
 - All endpoints verified working with curl
 
+**Session 5** (2026-01-19):
+- T005 COMPLETED: Vue Frontend Base complete
+- Set up Vue Router, Pinia, TailwindCSS
+- Created Login, Dashboard, History, Settings views
+- Created Layout and Header components
+- Implemented auth flow with JWT token storage
+- Fixed login API (JSON body, not form-urlencoded)
+- **Phase 1 Foundation Complete!**
+
 **Next Session Focus**:
-- T005: Vue Frontend Base
-- Vue Router setup
-- Pinia state management
-- Login page
+- T006: Collector Base
+- BaseCollector abstract class
+- MetricsAggregator coordinator
+- Pydantic metric schemas
