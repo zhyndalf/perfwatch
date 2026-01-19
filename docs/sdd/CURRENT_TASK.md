@@ -1,44 +1,84 @@
 # Current Task
 
-> **Status**: READY_FOR_IMPLEMENTATION
-> **Task ID**: T007
-> **Task File**: [T007-cpu-collector.md](./04-tasks/phase-2/T007-cpu-collector.md)
+> **Status**: IN_PROGRESS
+> **Task ID**: T011
+> **Task Name**: WebSocket Streaming
 
 ---
 
 ## Quick Context
 
-Implement a CPU metrics collector using psutil that gathers CPU usage, per-core stats, frequency, and load averages.
+Implement WebSocket endpoint for real-time metrics streaming to the frontend. The endpoint streams CPU, Memory, Network, and Disk metrics every 5 seconds.
 
 ---
 
-## What's Done (Previous Task T006)
+## What's Done (T011 - Partial)
 
-- [x] Created `backend/app/collectors/` package
-- [x] Implemented `BaseCollector` abstract class with `safe_collect()` error handling
-- [x] Implemented `MetricsAggregator` with concurrent collection and periodic callbacks
-- [x] Created Pydantic schemas for CPU, Memory, Network, Disk metrics
-- [x] Added 22 unit tests for collector infrastructure
-- [x] All 73 tests passing
+- [x] Created `backend/app/api/websocket.py` with WebSocket endpoint
+- [x] Implemented `ConnectionManager` class for handling multiple clients
+- [x] Implemented JWT authentication for WebSocket via query parameter (`?token=<jwt>`)
+- [x] Integrated `MetricsAggregator` with all 4 collectors (CPU, Memory, Network, Disk)
+- [x] Added broadcast callback for 5-second metric streaming
+- [x] Registered WebSocket router in `main.py`
+- [ ] Write unit tests for WebSocket streaming
+- [ ] Update README.md and progress files
 
 ---
 
-## What's Next (T007)
+## What's Next (T011 - Remaining)
 
-1. Create `CPUCollector` class using psutil
-2. Collect CPU usage, per-core, user/system/idle times
-3. Add frequency and load average collection
-4. Handle missing metrics gracefully
-5. Write unit tests
+1. Write unit tests for WebSocket endpoint
+2. Test the WebSocket connection manually
+3. Update documentation and progress files
+4. After T011: Continue to T012 (Dashboard UI)
+
+---
+
+## Key Files Created/Modified This Session
+
+| File | Action | Description |
+|------|--------|-------------|
+| `backend/app/api/websocket.py` | Created | WebSocket endpoint with ConnectionManager |
+| `backend/app/main.py` | Modified | Added websocket_router import and registration |
+
+---
+
+## WebSocket API Details
+
+**Endpoint**: `ws://localhost:8000/api/ws/metrics?token=<jwt_token>`
+
+**Server sends every 5 seconds**:
+```json
+{
+  "type": "metrics",
+  "timestamp": "2026-01-19T14:30:05Z",
+  "data": {
+    "cpu": { ... },
+    "memory": { ... },
+    "network": { ... },
+    "disk": { ... }
+  }
+}
+```
+
+**Client can send**:
+```json
+{ "type": "ping" }
+```
+
+**Server responds**:
+```json
+{ "type": "pong" }
+```
 
 ---
 
 ## Resume Instructions
 
 **To continue PerfWatch development:**
-1. Say "Let's continue perfwatch" or similar
-2. I'll read this file and the T007 task file
-3. We'll implement the CPU collector
+1. Say "Let's continue perfwatch" or "Continue T011"
+2. Read this file for context
+3. Remaining work: Write tests for WebSocket, update docs
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -71,10 +111,18 @@ None currently.
 
 **Session 6** (2026-01-19):
 - T006 COMPLETED: Collector Base complete
-- Created BaseCollector abstract class
-- Created MetricsAggregator with concurrent collection
-- Created Pydantic schemas for all metric types
-- 22 new tests (73 total)
+- T007 COMPLETED: CPU Collector complete
+- T008 COMPLETED: Memory Collector complete
+- T009 COMPLETED: Network Collector complete
+- T010 COMPLETED: Disk Collector complete
+- T011 IN PROGRESS: WebSocket Streaming (core implementation done, tests pending)
+
+**Current Session Work**:
+- Created WebSocket endpoint with JWT auth
+- Created ConnectionManager for multi-client support
+- Integrated MetricsAggregator for 5-second broadcasts
+- Merged dev to main branch and pushed
 
 **Next**:
-- T007: CPU Collector with psutil
+- Complete T011 (write tests, update docs)
+- T012: Dashboard UI with real-time charts
