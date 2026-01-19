@@ -7,7 +7,7 @@
 | **Phase** | 1 - Foundation |
 | **Estimated Time** | 2-3 hours |
 | **Dependencies** | T003 (Database Setup) |
-| **Status** | ⬜ NOT_STARTED |
+| **Status** | ✅ COMPLETED |
 
 ---
 
@@ -40,27 +40,27 @@ Reference documents:
 ## Acceptance Criteria
 
 ### Auth Service
-- [ ] Password hashing with bcrypt
-- [ ] Password verification
-- [ ] JWT token generation
-- [ ] JWT token validation
-- [ ] Token expiration handling
+- [x] Password hashing with bcrypt
+- [x] Password verification
+- [x] JWT token generation
+- [x] JWT token validation
+- [x] Token expiration handling
 
 ### Endpoints
-- [ ] `POST /api/auth/login` - Returns JWT token
-- [ ] `POST /api/auth/logout` - Invalidates session (optional)
-- [ ] `GET /api/auth/me` - Returns current user
-- [ ] `PUT /api/auth/password` - Change password
+- [x] `POST /api/auth/login` - Returns JWT token
+- [ ] `POST /api/auth/logout` - Invalidates session (optional, not implemented - stateless JWT)
+- [x] `GET /api/auth/me` - Returns current user
+- [x] `PUT /api/auth/password` - Change password
 
 ### Middleware
-- [ ] Auth dependency for protected routes
-- [ ] Extract user from token
-- [ ] Return 401 for invalid/missing token
+- [x] Auth dependency for protected routes
+- [x] Extract user from token
+- [x] Return 401 for invalid/missing token
 
 ### Security
-- [ ] Passwords never stored in plain text
-- [ ] Tokens are cryptographically signed
-- [ ] Sensitive data not in token payload
+- [x] Passwords never stored in plain text
+- [x] Tokens are cryptographically signed
+- [x] Sensitive data not in token payload
 
 ---
 
@@ -229,10 +229,23 @@ curl -X PUT http://localhost:8000/api/auth/password \
 
 ## Implementation Notes
 
-*To be filled during implementation*
+- Used bcrypt directly (not passlib) for better compatibility - matches pattern in CLAUDE.md
+- Used python-jose for JWT handling (HS256 algorithm)
+- Created type aliases `CurrentUser` and `DbSession` for cleaner endpoint signatures
+- Used Pydantic v2 `ConfigDict` for schema configuration
+- 25 new tests covering all auth functionality (51 total tests now)
+- Skipped logout endpoint - JWT is stateless, logout happens client-side by discarding token
 
 ---
 
 ## Files Created/Modified
 
-*To be filled during implementation*
+| File | Action | Description |
+|------|--------|-------------|
+| `backend/app/services/auth.py` | Created | Auth service with password hashing and JWT functions |
+| `backend/app/api/auth.py` | Created | Auth router with login, me, password endpoints |
+| `backend/app/api/deps.py` | Created | FastAPI dependencies (get_current_user, DbSession, CurrentUser) |
+| `backend/app/schemas/auth.py` | Created | LoginRequest, TokenResponse, PasswordChangeRequest |
+| `backend/app/schemas/user.py` | Created | UserResponse schema |
+| `backend/app/main.py` | Modified | Added auth router import and registration |
+| `backend/tests/test_auth.py` | Created | 25 comprehensive tests for auth functionality |

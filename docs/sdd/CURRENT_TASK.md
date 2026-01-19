@@ -1,40 +1,38 @@
 # Current Task
 
 > **Status**: READY_FOR_NEXT
-> **Task ID**: T004
-> **Task File**: [T004-auth-backend.md](./04-tasks/phase-1/T004-auth-backend.md)
+> **Task ID**: T005
+> **Task File**: [T005-vue-frontend.md](./04-tasks/phase-1/T005-vue-frontend.md)
 
 ---
 
 ## Quick Context
 
-Implement JWT-based authentication for the backend API with login endpoint and protected routes.
+Set up Vue.js 3 frontend with router, Pinia state management, and basic login page.
 
 ---
 
-## What's Done (Previous Task T003)
+## What's Done (Previous Task T004)
 
-- [x] Created `backend/app/config.py` for application settings
-- [x] Created `backend/app/database.py` with async engine and session
-- [x] Created SQLAlchemy models: User, MetricsSnapshot, Config, ArchivePolicy
-- [x] Configured Alembic for async migrations
-- [x] Created initial migration (001_initial.py)
-- [x] Created init_db.py with default admin user, config, and archive policy
-- [x] Added comprehensive test suite (26 tests) following TDD practices
-- [x] Updated Dockerfile to include dev dependencies for testing
-- [x] All tests passing
-- [x] Migrations verified working with real PostgreSQL
+- [x] Created `backend/app/services/auth.py` with bcrypt password hashing and JWT tokens
+- [x] Created `backend/app/api/auth.py` with login, me, password endpoints
+- [x] Created `backend/app/api/deps.py` with get_current_user dependency
+- [x] Created Pydantic schemas for auth (LoginRequest, TokenResponse, PasswordChangeRequest)
+- [x] Created UserResponse schema with Pydantic v2 ConfigDict
+- [x] Registered auth router in main.py
+- [x] Added 25 comprehensive tests (51 total tests now)
+- [x] All endpoints verified with curl commands
 
 ---
 
-## What's Next (T004)
+## What's Next (T005)
 
-1. Create JWT authentication utilities
-2. Create auth router with login endpoint
-3. Implement password verification
-4. Create dependency for protected routes
-5. Add user management endpoints
-6. Write tests for auth functionality
+1. Set up Vue Router with protected routes
+2. Set up Pinia for state management
+3. Create login page with form
+4. Create authenticated layout
+5. Implement JWT token storage and API interceptors
+6. Connect to backend auth endpoints
 
 ---
 
@@ -42,8 +40,8 @@ Implement JWT-based authentication for the backend API with login endpoint and p
 
 **To continue PerfWatch development:**
 1. Say "Let's continue perfwatch" or similar
-2. I'll read this file and the T004 task file
-3. We'll start implementing authentication
+2. I'll read this file and the T005 task file
+3. We'll start implementing the Vue frontend base
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -81,8 +79,16 @@ None currently.
 - Fixed bcrypt compatibility issue (used bcrypt directly instead of passlib)
 - All tests passing, migrations verified, default data initialized
 
+**Session 4** (2026-01-19):
+- T004 COMPLETED: Auth backend complete
+- Created auth service with bcrypt and JWT (python-jose)
+- Implemented login, me, password endpoints
+- Created FastAPI dependencies with type aliases (CurrentUser, DbSession)
+- Added 25 new tests (51 total)
+- All endpoints verified working with curl
+
 **Next Session Focus**:
-- T004: Auth Backend
-- JWT authentication
-- Login endpoint
-- Protected routes
+- T005: Vue Frontend Base
+- Vue Router setup
+- Pinia state management
+- Login page

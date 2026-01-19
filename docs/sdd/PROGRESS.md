@@ -1,31 +1,31 @@
 # PerfWatch Progress
 
-> Last Updated: 2025-01-19
+> Last Updated: 2026-01-19
 
-## Overall Progress: 14% Complete
+## Overall Progress: 18% Complete
 
 ```
-Phase 1: Foundation    [███░░░░░░░] 60%  (3/5 tasks)
+Phase 1: Foundation    [████░░░░░░] 80%  (4/5 tasks)
 Phase 2: Core Metrics  [░░░░░░░░░░] 0%
 Phase 3: Advanced      [░░░░░░░░░░] 0%
 Phase 4: Polish        [░░░░░░░░░░] 0%
 ─────────────────────────────────────
-Total                  [█░░░░░░░░░] 14%  (3/22 tasks)
+Total                  [██░░░░░░░░] 18%  (4/22 tasks)
 ```
 
 ---
 
-## Phase 1: Foundation [███░░░░░░░] 60% (3/5)
+## Phase 1: Foundation [████░░░░░░] 80% (4/5)
 
 | Status | Task ID | Name | Est. Time |
 |--------|---------|------|-----------|
 | ✅ | T001 | SDD & Project Scaffold | 1-2 hrs |
 | ✅ | T002 | Docker Setup | 1-2 hrs |
 | ✅ | T003 | Database Setup | 2-3 hrs |
-| ⏳ | T004 | Auth Backend | 2-3 hrs |
-| ⬜ | T005 | Vue Frontend Base | 2-3 hrs |
+| ✅ | T004 | Auth Backend | 2-3 hrs |
+| ⏳ | T005 | Vue Frontend Base | 2-3 hrs |
 
-**Current**: T004 - Auth Backend
+**Current**: T005 - Vue Frontend Base
 
 ---
 
@@ -83,10 +83,10 @@ Total                  [█░░░░░░░░░] 14%  (3/22 tasks)
 | Metric | Value |
 |--------|-------|
 | Total Tasks | 22 |
-| Completed | 3 |
+| Completed | 4 |
 | In Progress | 1 |
 | Blocked | 0 |
-| Remaining | 18 |
+| Remaining | 17 |
 | Est. Total Hours | ~52 |
 | Est. Sessions | ~22 |
 
@@ -99,3 +99,4 @@ Total                  [█░░░░░░░░░] 14%  (3/22 tasks)
 | 2025-01-18 | T001 | SDD & Project Scaffold - Complete SDD structure created |
 | 2025-01-19 | T002 | Docker Setup - docker-compose.yml, Dockerfiles, Vue.js app created |
 | 2025-01-19 | T003 | Database Setup - SQLAlchemy models, Alembic migrations, 26 tests |
+| 2026-01-19 | T004 | Auth Backend - JWT auth, login/me/password endpoints, 51 total tests |
