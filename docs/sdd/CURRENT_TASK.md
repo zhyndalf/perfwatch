@@ -1,6 +1,6 @@
 # Current Task
 
-> **Status**: IN_PROGRESS
+> **Status**: COMPLETED
 > **Task ID**: T011
 > **Task Name**: WebSocket Streaming
 
@@ -8,7 +8,7 @@
 
 ## Quick Context
 
-Implement WebSocket endpoint for real-time metrics streaming to the frontend. The endpoint streams CPU, Memory, Network, and Disk metrics every 5 seconds.
+WebSocket streaming endpoint implemented and verified (CPU/Memory/Network/Disk every 5s, JWT via query). Automated tests added and passing; manual WebSocket check returned live metrics.
 
 ---
 
@@ -20,17 +20,16 @@ Implement WebSocket endpoint for real-time metrics streaming to the frontend. Th
 - [x] Integrated `MetricsAggregator` with all 4 collectors (CPU, Memory, Network, Disk)
 - [x] Added broadcast callback for 5-second metric streaming
 - [x] Registered WebSocket router in `main.py`
-- [ ] Write unit tests for WebSocket streaming
-- [ ] Update README.md and progress files
+- [x] Added WebSocket unit tests (`backend/tests/test_websocket.py`) for auth missing/invalid token, ping/pong, metrics broadcast (single/multi-client), and aggregator lifecycle; executed via Docker (6 passed)
+- [x] Updated README.md and progress files; total tests now 131; Phase 2 at 86%, overall 50%
+- [x] Manual WebSocket verification via Docker: received metrics message with cpu/memory/network/disk keys
 
 ---
 
-## What's Next (T011 - Remaining)
+## What's Next
 
-1. Write unit tests for WebSocket endpoint
-2. Test the WebSocket connection manually
-3. Update documentation and progress files
-4. After T011: Continue to T012 (Dashboard UI)
+1. Start T012 (Dashboard UI) — hook the frontend to the WebSocket stream and build real-time charts
+2. Create/refresh T012 task file (phase-2) before implementation if needed
 
 ---
 
@@ -76,9 +75,9 @@ Implement WebSocket endpoint for real-time metrics streaming to the frontend. Th
 ## Resume Instructions
 
 **To continue PerfWatch development:**
-1. Say "Let's continue perfwatch" or "Continue T011"
-2. Read this file for context
-3. Remaining work: Write tests for WebSocket, update docs
+1. Begin T012 (Dashboard UI)
+2. If absent, add `docs/sdd/04-tasks/phase-2/T012-dashboard-ui.md` from template/backlog and outline acceptance criteria
+3. Implement frontend WebSocket consumption and charts per specs
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -115,7 +114,7 @@ None currently.
 - T008 COMPLETED: Memory Collector complete
 - T009 COMPLETED: Network Collector complete
 - T010 COMPLETED: Disk Collector complete
-- T011 IN PROGRESS: WebSocket Streaming (core implementation done, tests pending)
+- T011 COMPLETED: WebSocket Streaming (implementation, tests, manual verification)
 
 **Current Session Work**:
 - Created WebSocket endpoint with JWT auth

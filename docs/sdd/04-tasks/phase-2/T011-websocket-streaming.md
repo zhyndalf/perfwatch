@@ -1,6 +1,6 @@
 # T011: WebSocket Streaming
 
-> **Status**: IN_PROGRESS
+> **Status**: COMPLETED
 > **Phase**: 2 - Core Metrics
 > **Estimated Time**: 2-3 hours
 
@@ -46,17 +46,15 @@ Implement WebSocket endpoint for real-time metrics streaming from backend to fro
 4. **Router Registration**
    - Added `websocket_router` to `main.py`
 
-### Pending ⏳
+### Completed ✅ (additions)
 
-1. **Unit Tests** (`backend/tests/test_websocket.py`)
-   - Test authentication (valid/invalid/missing token)
-   - Test metrics broadcast format
-   - Test ping/pong handling
-   - Test connection manager
-
-2. **Documentation Updates**
-   - Update README.md
-   - Update PROGRESS.md
+- **Unit Tests Execution & Coverage**
+  - Added `backend/tests/test_websocket.py` covering missing/invalid token close, ping/pong, metrics broadcast, multi-client broadcast, and aggregator lifecycle cleanup
+  - Tests executed via `docker compose run --rm backend pytest tests/test_websocket.py -v` (6 passed)
+- **Documentation Updates**
+  - README and PROGRESS updated (Phase 2 to 86%, total tests 131, overall 50%)
+- **Manual Verification**
+  - WebSocket smoke test via Docker (`websockets` client) received metrics with cpu/memory/network/disk keys
 
 ---
 
@@ -66,7 +64,7 @@ Implement WebSocket endpoint for real-time metrics streaming from backend to fro
 |------|--------|-------------|
 | `backend/app/api/websocket.py` | ✅ Created | WebSocket endpoint and ConnectionManager |
 | `backend/app/main.py` | ✅ Modified | Router registration |
-| `backend/tests/test_websocket.py` | ⏳ Pending | Unit tests |
+| `backend/tests/test_websocket.py` | ✅ Added | WebSocket endpoint tests |
 
 ---
 
@@ -126,13 +124,13 @@ ws://localhost:8000/api/ws/metrics?token=<jwt_token>
 
 ## Testing Checklist
 
-- [ ] Test WebSocket connection with valid JWT
-- [ ] Test WebSocket rejection with invalid JWT
-- [ ] Test WebSocket rejection with no token
-- [ ] Test metrics message format
-- [ ] Test ping/pong handling
-- [ ] Test multiple client connections
-- [ ] Test connection cleanup on disconnect
+- [x] Test WebSocket connection with valid JWT
+- [x] Test WebSocket rejection with invalid JWT
+- [x] Test WebSocket rejection with no token
+- [x] Test metrics message format
+- [x] Test ping/pong handling
+- [x] Test multiple client connections
+- [x] Test connection cleanup on disconnect (aggregator stop)
 
 ---
 

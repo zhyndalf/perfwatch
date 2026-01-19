@@ -14,7 +14,7 @@ Real-time system performance monitoring web application.
 
 ## Development Progress
 
-> **45% Complete** (10/22 tasks) | Current: T011 - WebSocket Streaming
+> **50% Complete** (11/22 tasks) | Current: T012 - Dashboard UI
 
 ```mermaid
 flowchart TB
@@ -33,7 +33,7 @@ flowchart TB
         T008["✅ T008<br/>Memory"]
         T009["✅ T009<br/>Network"]
         T010["✅ T010<br/>Disk"]
-        T011["⏳ T011<br/>WebSocket"]
+        T011["✅ T011<br/>WebSocket"]
         T012["⬜ T012<br/>Dashboard"]
         T006 --> T007 --> T008 --> T009 --> T010 --> T011 --> T012
     end
@@ -63,15 +63,14 @@ flowchart TB
     classDef progress fill:#f39c12,stroke:#e67e22,color:#fff
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
-    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010 done
-    class T011 progress
+    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011 done
     class T012,T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
 ```
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
 | Phase 1: Foundation | ✅ 100% | 5/5 |
-| Phase 2: Core Metrics | 71% | 5/7 |
+| Phase 2: Core Metrics | 86% | 6/7 |
 | Phase 3: Advanced | 0% | 0/5 |
 | Phase 4: Polish | 0% | 0/5 |
 
@@ -181,7 +180,7 @@ perfwatch/
 ### Running Tests
 
 ```bash
-# Run backend tests (125 tests)
+# Run backend tests (131 tests)
 docker compose run --rm backend pytest tests/ -v
 
 # Run with coverage
