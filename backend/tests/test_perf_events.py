@@ -1,0 +1,372 @@
+"""Tests for the perf_events collector."""
+
+import pytest
+from unittest.mock import patch, MagicMock, mock_open
+import os
+
+from app.collectors.perf_events import (
+    PerfEventsCollector,
+    PerfEventAttr,
+    PERF_TYPE_HARDWARE,
+    PERF_COUNT_HW_CPU_CYCLES,
+    PERF_COUNT_HW_INSTRUCTIONS,
+    _get_arch,
+)
+from app.collectors.aggregator import MetricsAggregator
+
+
+class TestPerfEventsCollector:
+    """Tests for PerfEventsCollector class."""
+
+    def test_collector_name(self):
+        """Test that collector has correct name."""
+        collector = PerfEventsCollector()
+        assert collector.name == "perf_events"
+
+    def test_collector_repr(self):
+        """Test collector string representation."""
+        collector = PerfEventsCollector()
+        repr_str = repr(collector)
+
+        assert "PerfEventsCollector" in repr_str
+        assert "perf_events" in repr_str
+
+    def test_disabled_collector(self):
+        """Test that disabled collector returns disabled status."""
+        collector = PerfEventsCollector(enabled=False)
+        # Force initialization bypass by checking _available
+        assert collector.enabled is False
+
+    @pytest.mark.asyncio
+    async def test_disabled_collector_safe_collect(self):
+        """Test that disabled collector returns disabled status via safe_collect."""
+        collector = PerfEventsCollector(enabled=False)
+        data = await collector.safe_collect()
+
+        assert data["_enabled"] is False
+        assert "available" not in data
+
+    @pytest.mark.asyncio
+    async def test_collect_returns_availability_field(self):
+        """Test that collect() always returns an 'available' field."""
+        collector = PerfEventsCollector()
+        data = await collector.collect()
+
+        assert "available" in data
+        assert isinstance(data["available"], bool)
+
+    @pytest.mark.asyncio
+    async def test_collect_when_unavailable_returns_false(self):
+        """Test that collect returns available=False when perf_events unavailable."""
+        collector = PerfEventsCollector()
+
+        # Mock the paranoid check to return False
+        with patch.object(collector, "_check_paranoid", return_value=False):
+            collector._initialized = False  # Reset to force re-initialization
+            collector._available = None
+            data = await collector.collect()
+
+        assert data["available"] is False
+
+    @pytest.mark.asyncio
+    async def test_collect_graceful_on_missing_paranoid_file(self):
+        """Test graceful handling when /proc/sys/kernel/perf_event_paranoid is missing."""
+        collector = PerfEventsCollector()
+
+        with patch("os.path.exists", return_value=False):
+            collector._initialized = False
+            collector._available = None
+            data = await collector.collect()
+
+        assert data["available"] is False
+
+    @pytest.mark.asyncio
+    async def test_safe_collect_adds_metadata(self):
+        """Test that safe_collect adds timestamp and error fields."""
+        collector = PerfEventsCollector()
+        data = await collector.safe_collect()
+
+        assert "_timestamp" in data
+        assert "_error" in data
+        assert data["_error"] is None
+
+
+class TestPerfEventsAvailability:
+    """Tests for availability detection."""
+
+    def test_is_available_returns_bool(self):
+        """Test that is_available() returns a boolean."""
+        collector = PerfEventsCollector()
+        result = collector.is_available()
+
+        assert isinstance(result, bool)
+
+    def test_is_available_caches_result(self):
+        """Test that is_available() caches its result."""
+        collector = PerfEventsCollector()
+
+        # First call
+        result1 = collector.is_available()
+        # Set a flag to verify we're using cached value
+        collector._available = True
+
+        result2 = collector.is_available()
+
+        assert result2 is True  # Should use cached value
+
+    def test_check_paranoid_with_valid_file(self):
+        """Test _check_paranoid with a valid paranoid file."""
+        collector = PerfEventsCollector()
+
+        mock_content = "2\n"
+        with patch("os.path.exists", return_value=True):
+            with patch("builtins.open", mock_open(read_data=mock_content)):
+                result = collector._check_paranoid()
+
+        assert result is True
+
+    def test_check_paranoid_with_missing_file(self):
+        """Test _check_paranoid when paranoid file doesn't exist."""
+        collector = PerfEventsCollector()
+
+        with patch("os.path.exists", return_value=False):
+            result = collector._check_paranoid()
+
+        assert result is False
+
+
+class TestPerfEventsGracefulDegradation:
+    """Tests for graceful handling of errors and unavailable resources."""
+
+    @pytest.mark.asyncio
+    async def test_no_crash_on_permission_denied(self):
+        """Test that collector doesn't crash on permission errors."""
+        collector = PerfEventsCollector()
+
+        # Simulate permission denied on syscall
+        with patch.object(collector, "_perf_event_open", return_value=-1):
+            collector._initialized = False
+            collector._available = None
+            data = await collector.collect()
+
+        # Should return unavailable, not crash
+        assert data["available"] is False
+
+    @pytest.mark.asyncio
+    async def test_no_crash_on_syscall_not_found(self):
+        """Test graceful handling when syscall number not found for architecture."""
+        collector = PerfEventsCollector()
+
+        with patch("app.collectors.perf_events._get_arch", return_value="unknown_arch"):
+            collector._initialized = False
+            collector._available = None
+            data = await collector.collect()
+
+        assert data["available"] is False
+
+    @pytest.mark.asyncio
+    async def test_no_crash_on_libc_error(self):
+        """Test graceful handling when libc loading fails."""
+        collector = PerfEventsCollector()
+
+        with patch("app.collectors.perf_events._get_libc", side_effect=OSError("libc not found")):
+            collector._initialized = False
+            collector._available = None
+            data = await collector.collect()
+
+        assert data["available"] is False
+
+    @pytest.mark.asyncio
+    async def test_collect_with_partial_events(self):
+        """Test collection when only some events are available."""
+        collector = PerfEventsCollector()
+
+        # Simulate only cycles available, not instructions
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {"cycles": 10}  # Only cycles
+
+        try:
+            with patch.object(collector, "_read_counter", return_value=1000):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["cycles"] == 1000
+            assert data["instructions"] is None
+            assert data["ipc"] is None  # Can't calculate without instructions
+        finally:
+            # Clear FDs to prevent close() on fake FDs during cleanup
+            collector._fds = {}
+
+
+class TestPerfEventsMetricsCalculation:
+    """Tests for metrics calculation."""
+
+    @pytest.mark.asyncio
+    async def test_ipc_calculation(self):
+        """Test IPC (Instructions Per Cycle) calculation."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {"cycles": 10, "instructions": 11}
+
+        def mock_read(fd):
+            if fd == 10:  # cycles
+                return 1000
+            elif fd == 11:  # instructions
+                return 1500
+            return None
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["cycles"] == 1000
+            assert data["instructions"] == 1500
+            assert data["ipc"] == 1.5  # 1500 / 1000
+        finally:
+            # Clear FDs to prevent close() on fake FDs during cleanup
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_ipc_zero_cycles(self):
+        """Test IPC calculation when cycles is zero (avoid division by zero)."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {"cycles": 10, "instructions": 11}
+
+        def mock_read(fd):
+            if fd == 10:  # cycles
+                return 0
+            elif fd == 11:  # instructions
+                return 100
+            return None
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["cycles"] == 0
+            assert data["instructions"] == 100
+            assert data["ipc"] is None  # Should be None, not divide by zero
+        finally:
+            # Clear FDs to prevent close() on fake FDs during cleanup
+            collector._fds = {}
+
+
+class TestPerfEventsIntegration:
+    """Integration tests with the aggregator."""
+
+    @pytest.mark.asyncio
+    async def test_with_aggregator(self):
+        """Test perf_events collector works with MetricsAggregator."""
+        perf_collector = PerfEventsCollector()
+        aggregator = MetricsAggregator(collectors=[perf_collector])
+
+        snapshot = await aggregator.collect_all()
+
+        assert "timestamp" in snapshot
+        assert "perf_events" in snapshot
+        # Should have either data or error, but always available field
+        assert snapshot["perf_events"]["_error"] is None
+        assert "available" in snapshot["perf_events"]
+
+    @pytest.mark.asyncio
+    async def test_with_multiple_collectors(self):
+        """Test perf_events alongside other collectors in aggregator."""
+        from app.collectors import CPUCollector, MemoryCollector
+
+        aggregator = MetricsAggregator(
+            collectors=[
+                CPUCollector(),
+                MemoryCollector(),
+                PerfEventsCollector(),
+            ]
+        )
+
+        snapshot = await aggregator.collect_all()
+
+        assert "cpu" in snapshot
+        assert "memory" in snapshot
+        assert "perf_events" in snapshot
+        assert "available" in snapshot["perf_events"]
+
+
+class TestPerfEventAttrStructure:
+    """Tests for the perf_event_attr structure."""
+
+    def test_structure_size(self):
+        """Test that the structure has reasonable size."""
+        import ctypes
+        size = ctypes.sizeof(PerfEventAttr)
+        # The structure should be at least 88 bytes for basic operations
+        # (type + size + config + sample_period + sample_type + read_format + flags + padding)
+        assert size >= 88
+
+    def test_structure_fields(self):
+        """Test that required fields exist."""
+        attr = PerfEventAttr()
+        attr.type = PERF_TYPE_HARDWARE
+        attr.config = PERF_COUNT_HW_CPU_CYCLES
+
+        assert attr.type == PERF_TYPE_HARDWARE
+        assert attr.config == PERF_COUNT_HW_CPU_CYCLES
+
+
+class TestArchitectureDetection:
+    """Tests for architecture detection."""
+
+    def test_get_arch_returns_string(self):
+        """Test that _get_arch returns a string."""
+        arch = _get_arch()
+        assert isinstance(arch, str)
+        assert len(arch) > 0
+
+    def test_get_arch_known_platforms(self):
+        """Test architecture detection for known platforms."""
+        with patch("platform.machine", return_value="x86_64"):
+            assert _get_arch() == "x86_64"
+
+        with patch("platform.machine", return_value="AMD64"):
+            assert _get_arch() == "x86_64"
+
+        with patch("platform.machine", return_value="aarch64"):
+            assert _get_arch() == "aarch64"
+
+        with patch("platform.machine", return_value="arm64"):
+            assert _get_arch() == "aarch64"
+
+        with patch("platform.machine", return_value="armv7l"):
+            assert _get_arch() == "arm"
+
+
+class TestPerfEventsCleanup:
+    """Tests for resource cleanup."""
+
+    def test_close_clears_fds(self):
+        """Test that close() clears file descriptors."""
+        collector = PerfEventsCollector()
+        collector._fds = {"cycles": 10, "instructions": 11}
+        collector._available = True
+        collector._initialized = True
+
+        with patch("os.close"):
+            collector.close()
+
+        assert collector._fds == {}
+        assert collector._available is None
+        assert collector._initialized is False
+
+    def test_close_handles_errors(self):
+        """Test that close() handles errors gracefully."""
+        collector = PerfEventsCollector()
+        collector._fds = {"cycles": 10}
+
+        with patch("os.close", side_effect=OSError("close failed")):
+            # Should not raise
+            collector.close()
+
+        assert collector._fds == {}

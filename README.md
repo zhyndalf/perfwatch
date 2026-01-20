@@ -14,7 +14,7 @@ Real-time system performance monitoring web application.
 
 ## Development Progress
 
-> **55% Complete** (12/22 tasks) | Next: T013 - Perf Events Setup
+> **59% Complete** (13/22 tasks) | Next: T014 - Cache Metrics
 
 ```mermaid
 flowchart TB
@@ -38,8 +38,8 @@ flowchart TB
         T006 --> T007 --> T008 --> T009 --> T010 --> T011 --> T012
     end
 
-    subgraph P3["Phase 3: Advanced (0%)"]
-        T013["⬜ T013<br/>Perf Events"]
+    subgraph P3["Phase 3: Advanced (20%)"]
+        T013["✅ T013<br/>Perf Events"]
         T014["⬜ T014<br/>Cache"]
         T015["⬜ T015<br/>CPU Perf"]
         T016["⬜ T016<br/>Mem BW"]
@@ -63,15 +63,15 @@ flowchart TB
     classDef progress fill:#f39c12,stroke:#e67e22,color:#fff
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
-    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012 done
-    class T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
+    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012,T013 done
+    class T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
 ```
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
 | Phase 1: Foundation | ✅ 100% | 5/5 |
 | Phase 2: Core Metrics | ✅ 100% | 7/7 |
-| Phase 3: Advanced | 0% | 0/5 |
+| Phase 3: Advanced | 20% | 1/5 |
 | Phase 4: Polish | 0% | 0/5 |
 
 > 📋 Detailed progress: [docs/sdd/PROGRESS.md](./docs/sdd/PROGRESS.md)
@@ -84,7 +84,7 @@ flowchart TB
 | Backend | FastAPI + WebSocket + SQLAlchemy 2.0 |
 | Database | PostgreSQL 15 (JSONB) |
 | Auth | JWT (python-jose) + bcrypt |
-| Collectors | psutil (CPU, Memory, Network, Disk) |
+| Collectors | psutil (CPU, Memory, Network, Disk), perf_events (hardware counters) |
 | Deployment | Docker Compose |
 
 ## Quick Start
@@ -162,7 +162,7 @@ perfwatch/
 │   │   ├── schemas/   # Pydantic schemas
 │   │   └── services/  # Business logic
 │   ├── alembic/       # Database migrations
-│   └── tests/         # Backend tests (125 tests)
+│   └── tests/         # Backend tests (157 tests)
 ├── frontend/          # Vue.js frontend
 │   └── src/
 │       ├── api/       # Axios client
@@ -180,7 +180,7 @@ perfwatch/
 ### Running Tests
 
 ```bash
-# Run backend tests (131 tests)
+# Run backend tests (157 tests)
 docker compose run --rm backend pytest tests/ -v
 
 # Run with coverage
@@ -205,7 +205,7 @@ npm run dev
 
 ## Collectors
 
-PerfWatch includes 4 system metrics collectors:
+PerfWatch includes 5 system metrics collectors:
 
 | Collector | Metrics |
 |-----------|---------|
@@ -213,6 +213,7 @@ PerfWatch includes 4 system metrics collectors:
 | **Memory** | Total, available, used, swap, buffers, cached |
 | **Network** | Bytes sent/recv per second, packets, errors, per-interface stats |
 | **Disk** | Partition usage, I/O read/write rates, counts |
+| **Perf Events** | CPU cycles, instructions, IPC (requires perf_events support) |
 
 ## API Endpoints
 

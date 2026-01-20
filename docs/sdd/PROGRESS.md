@@ -2,15 +2,15 @@
 
 > Last Updated: 2026-01-20
 
-## Overall Progress: 55% Complete
+## Overall Progress: 59% Complete
 
 ```
 Phase 1: Foundation    [██████████] 100% (5/5 tasks) ✅
 Phase 2: Core Metrics  [██████████] 100% (7/7 tasks) ✅
-Phase 3: Advanced      [░░░░░░░░░░] 0%
+Phase 3: Advanced      [██░░░░░░░░] 20%  (1/5 tasks)
 Phase 4: Polish        [░░░░░░░░░░] 0%
 ─────────────────────────────────────
-Total                  [█████░░░░░] 55%  (12/22 tasks)
+Total                  [██████░░░░] 59%  (13/22 tasks)
 ```
 
 ---
@@ -45,11 +45,11 @@ Total                  [█████░░░░░] 55%  (12/22 tasks)
 
 ---
 
-## Phase 3: Advanced Metrics [░░░░░░░░░░] 0% (0/5)
+## Phase 3: Advanced Metrics [██░░░░░░░░] 20% (1/5)
 
 | Status | Task ID | Name | Est. Time |
 |--------|---------|------|-----------|
-| ⬜ | T013 | Perf Events Setup | 3-4 hrs |
+| ✅ | T013 | Perf Events Setup | 3-4 hrs |
 | ⬜ | T014 | Cache Metrics | 2-3 hrs |
 | ⬜ | T015 | CPU Perf Metrics | 2-3 hrs |
 | ⬜ | T016 | Memory Bandwidth | 2-3 hrs |
@@ -85,12 +85,12 @@ Total                  [█████░░░░░] 55%  (12/22 tasks)
 | Metric | Value |
 |--------|-------|
 | Total Tasks | 22 |
-| Completed | 12 |
+| Completed | 13 |
 | In Progress | 0 |
 | Blocked | 0 |
-| Remaining | 10 |
+| Remaining | 9 |
 | Est. Total Hours | ~52 |
-| Total Tests | 131 |
+| Total Tests | 157 |
 
 ---
 
@@ -110,3 +110,4 @@ Total                  [█████░░░░░] 55%  (12/22 tasks)
 | 2026-01-19 | T010 | Disk Collector - Partitions and I/O, 125 total tests |
 | 2026-01-19 | T011 | WebSocket Streaming - Real-time metrics endpoint, 131 total tests |
 | 2026-01-20 | T012 | Dashboard UI - ECharts, WebSocket integration, responsive layout ✅ Phase 2 Complete |
+| 2026-01-20 | T013 | Perf Events Setup - Linux perf_events integration with ctypes, 157 total tests |

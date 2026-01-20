@@ -69,6 +69,17 @@ class NetworkMetrics(BaseModel):
     connection_count: int = Field(0, description="Number of active connections")
 
 
+# === Perf Events Metrics ===
+
+class PerfEventsMetrics(BaseModel):
+    """Hardware performance counter metrics from Linux perf_events."""
+
+    available: bool = Field(False, description="Whether perf_events is available")
+    cycles: Optional[int] = Field(None, description="CPU cycles count")
+    instructions: Optional[int] = Field(None, description="Instructions count")
+    ipc: Optional[float] = Field(None, description="Instructions Per Cycle")
+
+
 # === Disk Metrics ===
 
 class DiskPartitionMetrics(BaseModel):
@@ -114,6 +125,7 @@ class MetricsSnapshot(BaseModel):
     memory: Optional[Dict[str, Any]] = Field(None, description="Memory metrics")
     network: Optional[Dict[str, Any]] = Field(None, description="Network metrics")
     disk: Optional[Dict[str, Any]] = Field(None, description="Disk metrics")
+    perf_events: Optional[Dict[str, Any]] = Field(None, description="Hardware perf counters")
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,14 +1,14 @@
 # Current Task
 
 > **Status**: READY TO START
-> **Task ID**: T013
-> **Task Name**: Perf Events Setup
+> **Task ID**: T014
+> **Task Name**: Cache Metrics
 
 ---
 
 ## Quick Context
 
-Set up Linux perf_events integration for advanced hardware performance counters. This is the first task of Phase 3 (Advanced Metrics).
+Implement cache miss rate collection using perf_events hardware counters. This builds on T013 to add cache performance metrics.
 
 ---
 
@@ -16,16 +16,18 @@ Set up Linux perf_events integration for advanced hardware performance counters.
 
 - **Phase 1 Complete (5/5)**: Foundation - SDD, Docker, Database, Auth, Vue Base
 - **Phase 2 Complete (7/7)**: Core Metrics - Collectors, WebSocket, Dashboard UI
-- T012 Dashboard UI completed: Real-time charts for CPU/Memory/Network/Disk streaming via WebSocket
-- 131 backend tests passing
+- **Phase 3 Started (1/5)**: T013 Perf Events Setup completed
+- T013 Perf Events: PerfEventsCollector with ctypes syscall, graceful degradation
+- 157 backend tests passing
 
 ---
 
 ## What's Next
 
-1. Review T013 task file at `docs/sdd/04-tasks/phase-3/T013-perf-events-setup.md`
-2. Implement perf_events integration with graceful degradation
-3. Test with and without perf_events availability
+1. Review T014 task file (to be created)
+2. Add cache miss/hit counters to PerfEventsCollector
+3. Calculate cache miss rate metrics
+4. Update dashboard with cache metrics visualization
 
 ---
 
@@ -33,19 +35,19 @@ Set up Linux perf_events integration for advanced hardware performance counters.
 
 | File | Description |
 |------|-------------|
-| `frontend/src/stores/metrics.js` | Pinia store for WebSocket metrics |
-| `frontend/src/views/Dashboard.vue` | Real-time dashboard with ECharts |
-| `backend/app/api/websocket.py` | WebSocket streaming endpoint |
-| `backend/app/collectors/` | CPU, Memory, Network, Disk collectors |
+| `backend/app/collectors/perf_events.py` | Linux perf_events collector (NEW) |
+| `backend/app/schemas/metrics.py` | PerfEventsMetrics schema added |
+| `backend/app/api/websocket.py` | Now includes perf_events in stream |
+| `backend/tests/test_perf_events.py` | 26 tests for perf_events |
 
 ---
 
 ## Resume Instructions
 
 **To continue PerfWatch development:**
-1. Read T013 task file: `docs/sdd/04-tasks/phase-3/T013-perf-events-setup.md`
-2. Start services: `docker compose up -d`
-3. Begin implementing perf_events collector with graceful degradation
+1. Start services: `docker compose up -d`
+2. Extend perf_events collector with cache metrics
+3. Note: perf_events may not work in unprivileged Docker containers
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -88,5 +90,9 @@ None currently.
 - T012 COMPLETED: Dashboard UI complete - ECharts charts, WebSocket integration, responsive layout
 - **Phase 2 Core Metrics Complete!**
 
+**Session 8** (2026-01-20):
+- T013 COMPLETED: Perf Events Setup - Linux perf_events with ctypes, cycles/instructions/IPC metrics
+- **Phase 3 Advanced Metrics Started!**
+
 **Next Session**:
-- Start T013: Perf Events Setup (Phase 3)
+- Start T014: Cache Metrics
