@@ -8,9 +8,9 @@
 Phase 1: Foundation    [██████████] 100% (5/5 tasks) ✅
 Phase 2: Core Metrics  [██████████] 100% (7/7 tasks) ✅
 Phase 3: Advanced      [██████████] 100% (5/5 tasks) ✅
-Phase 4: Polish        [████░░░░░░] 40%  (2/5 tasks) ✅
+Phase 4: Polish        [████████░░] 80%  (4/5 tasks) ✅
 ─────────────────────────────────────
-Total                  [█████████░] 86%  (19/22 tasks)
+Total                  [██████████] 95%  (21/22 tasks)
 ```
 
 ---
@@ -65,8 +65,8 @@ Total                  [█████████░] 86%  (19/22 tasks)
 |--------|---------|------|-----------|
 | ✅ | T018 | History Storage | 2-3 hrs |
 | ✅ | T019 | Comparison View | 2-3 hrs |
-| ⏳ | T020 | Data Retention | 2-3 hrs |
-| ⬜ | T021 | Settings Page | 2-3 hrs |
+| ✅ | T020 | Data Retention | 2-3 hrs |
+| ✅ | T021 | Settings Page | 2-3 hrs |
 | ⬜ | T022 | Polish & Testing | 3-4 hrs |
 
 ---
@@ -87,10 +87,10 @@ Total                  [█████████░] 86%  (19/22 tasks)
 | Metric | Value |
 |--------|-------|
 | Total Tasks | 22 |
-| Completed | 19 |
-| In Progress | 1 |
+| Completed | 21 |
+| In Progress | 0 |
 | Blocked | 0 |
-| Remaining | 3 |
+| Remaining | 1 |
 | Est. Total Hours | ~52 |
 | Total Tests | 203 |
 
@@ -119,3 +119,5 @@ Total                  [█████████░] 86%  (19/22 tasks)
 | 2026-01-20 | T017 | Advanced Dashboard - ECharts for perf_events & memory I/O, graceful degradation ✅ Phase 3 Complete |
 | 2026-01-20 | T018 | History Storage - Persist metrics, history API, downsampling ✅ Phase 4 started |
 | 2026-01-20 | T019 | Comparison View - Compare API, overlay charts, summary stats |
+| 2026-01-20 | T020 | Data Retention - Policy API, cleanup service, Settings UI, periodic cleanup |
+| 2026-01-20 | T021 | Settings Page - Config API, system info, Settings UI enhancements |

@@ -11,6 +11,8 @@ export const useRetentionStore = defineStore('retention', {
     downsampleAfterDays: 7,
     downsampleInterval: '1h',
     archiveEnabled: true,
+    cleanupEnabled: true,
+    cleanupIntervalMinutes: 60,
     lastArchiveRun: null,
     cleanupSummary: null,
   }),
@@ -30,6 +32,8 @@ export const useRetentionStore = defineStore('retention', {
         this.downsampleInterval = data.downsample_interval
         this.archiveEnabled = data.archive_enabled
         this.lastArchiveRun = data.last_archive_run
+        this.cleanupEnabled = data.cleanup_enabled ?? true
+        this.cleanupIntervalMinutes = data.cleanup_interval_minutes ?? 60
       } catch (err) {
         this.error = err.response?.data?.detail || 'Failed to load retention policy'
       } finally {
@@ -54,8 +58,13 @@ export const useRetentionStore = defineStore('retention', {
           downsample_after_days: this.downsampleAfterDays,
           downsample_interval: this.downsampleInterval,
           archive_enabled: this.archiveEnabled,
+          cleanup_enabled: this.cleanupEnabled,
+          cleanup_interval_minutes: this.cleanupIntervalMinutes,
         })
         this.lastArchiveRun = response.data.last_archive_run
+        this.cleanupEnabled = response.data.cleanup_enabled ?? this.cleanupEnabled
+        this.cleanupIntervalMinutes =
+          response.data.cleanup_interval_minutes ?? this.cleanupIntervalMinutes
         this.success = 'Retention policy updated'
         return response.data
       } catch (err) {

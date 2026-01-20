@@ -121,3 +121,14 @@ export const retentionApi = {
     return api.post('/retention/cleanup')
   },
 }
+
+// Config API functions
+export const configApi = {
+  getConfig() {
+    return api.get('/config')
+  },
+
+  updateConfig(payload) {
+    return api.put('/config', payload)
+  },
+}

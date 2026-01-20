@@ -1,14 +1,14 @@
 # Current Task
 
 > **Status**: IN PROGRESS
-> **Task ID**: T020
-> **Task Name**: Data Retention
+> **Task ID**: T022
+> **Task Name**: Polish & Testing
 
 ---
 
 ## Quick Context
 
-Implement data retention policies, downsampling, and cleanup for historical metrics storage.
+Polish UI and complete end-to-end testing and documentation updates.
 
 ---
 
@@ -20,16 +20,17 @@ Implement data retention policies, downsampling, and cleanup for historical metr
 - T017 Advanced Dashboard: ECharts visualization for all metrics, graceful degradation for perf_events
 - Fixed perf_events collector to correctly report unavailable when cycles/instructions not accessible
 - T019 Comparison View: compare endpoint + overlay charts + summary stats
-- T020 Retention (in progress): API endpoints + cleanup service + Settings UI controls
+- T020 Data Retention: API endpoints + cleanup service + Settings UI controls + periodic cleanup
+- T021 Settings Page: system info + config API + settings UI
 - 203 backend tests passing
 
 ---
 
 ## What's Next
 
-1. Wire retention settings into shared store/state
-2. Add scheduled cleanup job or manual trigger in backend
-3. Update docs and finalize T020
+1. Run full backend test suite
+2. Verify UI flows for Settings/History/Retention
+3. Update docs + README with final status
 
 ---
 
@@ -37,9 +38,8 @@ Implement data retention policies, downsampling, and cleanup for historical metr
 
 | File | Description |
 |------|-------------|
-| `backend/app/services/metrics_storage.py` | History query + batch persistence helpers |
-| `backend/app/api/history.py` | History API endpoints |
-| `frontend/src/views/History.vue` | History view + charts |
+| `frontend/src/views/Settings.vue` | Settings UI |
+| `backend/tests/` | Test suite |
 
 ---
 
@@ -47,8 +47,8 @@ Implement data retention policies, downsampling, and cleanup for historical metr
 
 **To continue PerfWatch development:**
 1. Start services: `docker compose up -d`
-2. Implement retention settings and cleanup logic
-3. Update Settings UI for retention controls
+2. Add missing tests or regressions
+3. Finalize docs and release notes
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -105,4 +105,4 @@ None currently.
 - **Phase 3 Advanced Metrics Complete!**
 
 **Next Session**:
-- Start T020: Data Retention
+- Start T022: Polish & Testing

@@ -132,6 +132,26 @@
               />
               <label for="archiveEnabled" class="text-gray-300 text-sm">Enable cleanup</label>
             </div>
+
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Cleanup Interval (minutes)</label>
+              <input
+                v-model.number="cleanupIntervalMinutes"
+                type="number"
+                min="1"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors"
+              />
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input
+                id="cleanupEnabled"
+                v-model="cleanupEnabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-dark-border text-accent-cyan focus:ring-accent-cyan"
+              />
+              <label for="cleanupEnabled" class="text-gray-300 text-sm">Enable scheduled cleanup</label>
+            </div>
           </div>
 
           <div v-if="retentionError" class="p-3 bg-accent-error/20 border border-accent-error/50 rounded-lg text-accent-error text-sm">
@@ -165,6 +185,39 @@
           </div>
         </div>
       </div>
+
+      <!-- System Info -->
+      <div class="bg-dark-surface/50 border border-dark-border rounded-xl p-6">
+        <h2 class="text-accent-cyan font-semibold mb-4">System Info</h2>
+
+        <div v-if="configLoading" class="text-gray-400 text-sm">
+          Loading system info...
+        </div>
+
+        <div v-else class="space-y-3 text-sm text-gray-300">
+          <div v-if="configError" class="p-3 bg-accent-error/20 border border-accent-error/50 rounded-lg text-accent-error">
+            {{ configError }}
+          </div>
+          <div class="flex items-center justify-between">
+            <span>Perf Events</span>
+            <span class="text-white">
+              {{ perfEventsEnabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>Sampling Interval</span>
+            <span class="text-white">
+              {{ samplingIntervalSeconds ? `${samplingIntervalSeconds}s` : 'N/A' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>App Version</span>
+            <span class="text-white">
+              {{ appVersion || 'N/A' }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -175,9 +228,11 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api'
 import { useRetentionStore } from '@/stores/retention'
+import { useConfigStore } from '@/stores/config'
 
 const authStore = useAuthStore()
 const retentionStore = useRetentionStore()
+const configStore = useConfigStore()
 const {
   loading: retentionLoading,
   saving: retentionSaving,
@@ -187,9 +242,19 @@ const {
   downsampleAfterDays,
   downsampleInterval,
   archiveEnabled,
+  cleanupEnabled,
+  cleanupIntervalMinutes,
   lastArchiveRun: retentionLastRun,
   cleanupSummary,
 } = storeToRefs(retentionStore)
+
+const {
+  loading: configLoading,
+  error: configError,
+  samplingIntervalSeconds,
+  perfEventsEnabled,
+  appVersion,
+} = storeToRefs(configStore)
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -204,7 +269,10 @@ const formatLastLogin = computed(() => {
 })
 
 onMounted(async () => {
-  await retentionStore.fetchPolicy()
+  await Promise.all([
+    retentionStore.fetchPolicy(),
+    configStore.fetchConfig(),
+  ])
 })
 
 async function handleChangePassword() {

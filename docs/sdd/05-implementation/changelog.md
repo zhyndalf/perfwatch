@@ -68,6 +68,27 @@
 
 ---
 
+## [2026-01-20] - T020 - Data Retention
+
+### Added
+- Retention policy API with update + manual cleanup
+- Settings UI controls for retention and scheduled cleanup
+- Periodic cleanup task in FastAPI lifespan
+
+### Changed
+- Retention cleanup now counts deletions before delete for reliable reporting
+
+---
+
+## [2026-01-20] - T021 - Settings Page
+
+### Added
+- `/api/config` endpoints and config service layer
+- Settings UI system info panel (perf events, sampling interval, version)
+- Config store and tests for config endpoints
+
+---
+
 ## Upcoming
 
 *Future changes will be logged here as tasks are completed*

@@ -26,6 +26,8 @@ class RetentionPolicyUpdate(BaseModel):
     archive_enabled: Optional[bool] = None
     downsample_after_days: Optional[int] = Field(None, ge=0)
     downsample_interval: Optional[str] = None
+    cleanup_enabled: Optional[bool] = None
+    cleanup_interval_minutes: Optional[int] = Field(None, ge=1)
 
 
 class RetentionPolicyResponse(RetentionPolicyBase):
@@ -35,6 +37,8 @@ class RetentionPolicyResponse(RetentionPolicyBase):
     last_archive_run: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    cleanup_enabled: bool = True
+    cleanup_interval_minutes: int = 60
 
     model_config = ConfigDict(from_attributes=True)
 

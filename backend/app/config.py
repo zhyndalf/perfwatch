@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # Metrics Collection
     SAMPLING_INTERVAL_SECONDS: int = 5
     BACKGROUND_COLLECTION_ENABLED: bool = True
+    RETENTION_CLEANUP_ENABLED: bool = True
+    RETENTION_CLEANUP_INTERVAL_MINUTES: int = 60
 
     class Config:
         env_file = ".env"

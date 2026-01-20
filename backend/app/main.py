@@ -1,15 +1,65 @@
 """PerfWatch Backend - Main Application Entry Point"""
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import close_db
+from app.database import close_db, AsyncSessionLocal
 from app.api.auth import router as auth_router
 from app.api.websocket import router as websocket_router, start_background_collection, stop_background_collection
 from app.api.history import router as history_router
 from app.api.retention import router as retention_router
+from app.api.config import router as config_router
+from app.services.retention import apply_retention_policy
+
+logger = logging.getLogger(__name__)
+
+_retention_task: asyncio.Task | None = None
+_retention_stop: asyncio.Event | None = None
+
+
+async def _retention_loop() -> None:
+    """Run retention cleanup on a fixed interval."""
+    assert _retention_stop is not None
+
+    while not _retention_stop.is_set():
+        if settings.RETENTION_CLEANUP_ENABLED:
+            try:
+                async with AsyncSessionLocal() as session:
+                    deleted, _ = await apply_retention_policy(session)
+                    if deleted:
+                        logger.info("Retention cleanup removed %s snapshots", deleted)
+            except Exception:
+                logger.exception("Retention cleanup failed")
+
+        try:
+            interval_seconds = max(settings.RETENTION_CLEANUP_INTERVAL_MINUTES, 1) * 60
+            await asyncio.wait_for(_retention_stop.wait(), timeout=interval_seconds)
+        except asyncio.TimeoutError:
+            continue
+
+
+async def start_retention_cleanup() -> None:
+    """Start the periodic retention cleanup task."""
+    global _retention_task, _retention_stop
+    if _retention_task is not None:
+        return
+    _retention_stop = asyncio.Event()
+    _retention_task = asyncio.create_task(_retention_loop())
+
+
+async def stop_retention_cleanup() -> None:
+    """Stop the periodic retention cleanup task."""
+    global _retention_task, _retention_stop
+    if _retention_task is None or _retention_stop is None:
+        return
+    _retention_stop.set()
+    await _retention_task
+    _retention_task = None
+    _retention_stop = None
 
 
 @asynccontextmanager
@@ -24,6 +74,8 @@ async def lifespan(app: FastAPI):
     await init_default_data()
     if settings.BACKGROUND_COLLECTION_ENABLED:
         await start_background_collection()
+    if settings.RETENTION_CLEANUP_ENABLED:
+        await start_retention_cleanup()
 
     yield
 
@@ -31,6 +83,8 @@ async def lifespan(app: FastAPI):
     print("Shutting down...")
     if settings.BACKGROUND_COLLECTION_ENABLED:
         await stop_background_collection()
+    if settings.RETENTION_CLEANUP_ENABLED:
+        await stop_retention_cleanup()
     await close_db()
 
 
@@ -55,6 +109,7 @@ app.include_router(auth_router)
 app.include_router(websocket_router)
 app.include_router(history_router)
 app.include_router(retention_router)
+app.include_router(config_router)
 
 
 @app.get("/health")
