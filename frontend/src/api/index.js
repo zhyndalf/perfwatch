@@ -54,3 +54,55 @@ export const authApi = {
       new_password: newPassword,
     }),
 }
+
+// History API functions
+export const historyApi = {
+  /**
+   * Get historical metrics data
+   * @param {string} metricType - One of: cpu, memory, network, disk, perf_events, memory_bandwidth
+   * @param {string} startTime - ISO 8601 datetime string
+   * @param {string} endTime - ISO 8601 datetime string
+  * @param {number} [limit=1000] - Maximum number of results
+  * @param {string} [interval] - Aggregation interval: 5s, 1m, 5m, 1h, auto
+  * @returns {Promise} Response with data_points array
+  */
+  getMetrics(metricType, startTime, endTime, limit = 1000, interval) {
+    return api.get('/history/metrics', {
+      params: {
+        metric_type: metricType,
+        start_time: startTime,
+        end_time: endTime,
+        limit,
+        interval,
+      },
+    })
+  },
+
+  /**
+   * Get available metric types
+   * @returns {Promise} Response with metric_types array
+   */
+  getMetricTypes() {
+    return api.get('/history/metrics/types')
+  },
+
+  /**
+   * Compare metrics for the current period vs a prior period
+   * @param {string} metricType
+   * @param {string} period - hour, day, week
+   * @param {string} compareTo - yesterday, last_week
+   * @param {number} [limit=1000]
+   * @param {string} [interval]
+   */
+  compareMetrics(metricType, period, compareTo, limit = 1000, interval) {
+    return api.get('/history/compare', {
+      params: {
+        metric_type: metricType,
+        period,
+        compare_to: compareTo,
+        limit,
+        interval,
+      },
+    })
+  },
+}

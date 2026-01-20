@@ -1,6 +1,7 @@
 """Pytest configuration and fixtures."""
 
 import asyncio
+import os
 from typing import AsyncGenerator, Generator
 
 import pytest
@@ -9,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.pool import NullPool
 
 from app.database import Base, get_db
-from app.main import app
 
 
 # Use PostgreSQL test database (same as main db for simplicity in Docker)
@@ -85,6 +85,8 @@ async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 async def client(db_session):
     """Create test client with database override."""
     from httpx import AsyncClient, ASGITransport
+    os.environ.setdefault("BACKGROUND_COLLECTION_ENABLED", "false")
+    from app.main import app
 
     async def override_get_db():
         yield db_session

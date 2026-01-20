@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import close_db
 from app.api.auth import router as auth_router
-from app.api.websocket import router as websocket_router
+from app.api.websocket import router as websocket_router, start_background_collection, stop_background_collection
+from app.api.history import router as history_router
 
 
 @asynccontextmanager
@@ -20,11 +21,15 @@ async def lifespan(app: FastAPI):
     # Initialize default data
     from app.init_db import init_default_data
     await init_default_data()
+    if settings.BACKGROUND_COLLECTION_ENABLED:
+        await start_background_collection()
 
     yield
 
     # Shutdown
     print("Shutting down...")
+    if settings.BACKGROUND_COLLECTION_ENABLED:
+        await stop_background_collection()
     await close_db()
 
 
@@ -47,6 +52,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(websocket_router)
+app.include_router(history_router)
 
 
 @app.get("/health")

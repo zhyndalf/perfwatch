@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # Metrics Collection
     SAMPLING_INTERVAL_SECONDS: int = 5
+    BACKGROUND_COLLECTION_ENABLED: bool = True
 
     class Config:
         env_file = ".env"

@@ -52,7 +52,7 @@ export const useMetricsStore = defineStore('metrics', {
   actions: {
     connect() {
       const authStore = useAuthStore()
-      const token = authStore.token
+      const token = authStore.token || localStorage.getItem('token')
 
       if (!token) {
         this.error = 'Missing auth token'

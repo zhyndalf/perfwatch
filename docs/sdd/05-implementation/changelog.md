@@ -41,6 +41,33 @@
 
 ---
 
+## [2026-01-20] - T018 - History Storage
+
+### Added
+- Batch metrics persistence for WebSocket snapshots
+- History query API with interval-based downsampling
+- T018 task file and Phase 4 tracking
+
+### Changed
+- WebSocket aggregation interval now uses configured sampling setting
+
+### Fixed
+- History persistence tests now use injected sessions to avoid loop conflicts
+
+---
+
+## [2026-01-20] - T019 - Comparison View
+
+### Added
+- `/api/history/compare` endpoint for same-period comparisons
+- Comparison UI controls and overlay series in History view
+- Summary statistics for current vs comparison periods
+
+### Changed
+- Comparison series aligned to current-period timestamps for overlays
+
+---
+
 ## Upcoming
 
 *Future changes will be logged here as tasks are completed*

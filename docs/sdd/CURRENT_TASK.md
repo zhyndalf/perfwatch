@@ -1,14 +1,14 @@
 # Current Task
 
-> **Status**: READY TO START
-> **Task ID**: T018
-> **Task Name**: History Storage
+> **Status**: IN PROGRESS
+> **Task ID**: T020
+> **Task Name**: Data Retention
 
 ---
 
 ## Quick Context
 
-Implement persistent storage for metrics snapshots. Save WebSocket metrics to the database and create API endpoints for querying historical data with time-range filters.
+Implement data retention policies, downsampling, and cleanup for historical metrics storage.
 
 ---
 
@@ -19,16 +19,16 @@ Implement persistent storage for metrics snapshots. Save WebSocket metrics to th
 - **Phase 3 Complete (5/5)**: Advanced Metrics - Perf Events, Cache, CPU Perf, Memory Bandwidth, Advanced Dashboard
 - T017 Advanced Dashboard: ECharts visualization for all metrics, graceful degradation for perf_events
 - Fixed perf_events collector to correctly report unavailable when cycles/instructions not accessible
+- T019 Comparison View: compare endpoint + overlay charts + summary stats
 - 203 backend tests passing
 
 ---
 
 ## What's Next
 
-1. Save metrics snapshots to `metrics_snapshot` table during WebSocket broadcast
-2. Create `/api/history/metrics` endpoint with time-range query parameters
-3. Add downsampling for older data to manage storage
-4. Frontend History view to display historical charts
+1. Implement retention policy config (days, downsampling, interval)
+2. Add cleanup job/service for expired metrics snapshots
+3. Update settings UI to manage retention settings
 
 ---
 
@@ -36,10 +36,9 @@ Implement persistent storage for metrics snapshots. Save WebSocket metrics to th
 
 | File | Description |
 |------|-------------|
-| `backend/app/collectors/perf_events.py` | Fixed availability check for cycles/instructions |
-| `frontend/src/views/Dashboard.vue` | Complete dashboard with all advanced metrics |
-| `frontend/src/stores/metrics.js` | Metrics store with history arrays |
-| `backend/app/api/websocket.py` | WebSocket endpoint broadcasting all metrics |
+| `backend/app/services/metrics_storage.py` | History query + batch persistence helpers |
+| `backend/app/api/history.py` | History API endpoints |
+| `frontend/src/views/History.vue` | History view + charts |
 
 ---
 
@@ -47,9 +46,8 @@ Implement persistent storage for metrics snapshots. Save WebSocket metrics to th
 
 **To continue PerfWatch development:**
 1. Start services: `docker compose up -d`
-2. Implement metrics persistence in WebSocket handler
-3. Create history API endpoint with filters
-4. Add History view in frontend
+2. Implement retention settings and cleanup logic
+3. Update Settings UI for retention controls
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -106,4 +104,4 @@ None currently.
 - **Phase 3 Advanced Metrics Complete!**
 
 **Next Session**:
-- Start T018: History Storage
+- Start T020: Data Retention

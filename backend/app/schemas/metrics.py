@@ -179,6 +179,7 @@ class MetricsHistoryQuery(BaseModel):
     end_time: datetime = Field(..., description="End of time range")
     metric_type: Optional[str] = Field(None, description="Filter by metric type")
     interval: Optional[int] = Field(None, description="Downsample interval in seconds")
+    limit: int = Field(default=1000, ge=1, le=10000, description="Maximum results to return")
 
 
 class MetricsHistoryResponse(BaseModel):

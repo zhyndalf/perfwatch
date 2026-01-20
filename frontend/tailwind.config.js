@@ -9,9 +9,9 @@ export default {
       colors: {
         // Dark theme colors matching the existing design
         dark: {
-          bg: '#1a1a2e',
-          surface: '#16213e',
-          border: 'rgba(255, 255, 255, 0.1)',
+          bg: '#0f172a',
+          surface: '#1f2937',
+          border: 'rgba(255, 255, 255, 0.22)',
         },
         accent: {
           cyan: '#00d4ff',

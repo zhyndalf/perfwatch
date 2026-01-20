@@ -14,7 +14,7 @@
 4. **Run migrations** (if needed): `docker compose exec backend alembic upgrade head`
 5. **Continue** from "What's Next" section
 
-**Current Task**: T017 - Advanced Dashboard ([PROGRESS.md](docs/sdd/PROGRESS.md))
+**Current Task**: T020 - Data Retention ([PROGRESS.md](docs/sdd/PROGRESS.md))
 
 ---
 

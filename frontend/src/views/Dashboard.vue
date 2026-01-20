@@ -1,5 +1,13 @@
 <template>
   <div class="p-6 space-y-6">
+    <div v-if="metricsStore.error" class="card bg-red-500/10 border-red-500/30">
+      <div class="flex items-center gap-3 text-red-400">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>{{ metricsStore.error }}</span>
+      </div>
+    </div>
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-white">Dashboard</h1>
@@ -258,8 +266,18 @@ const perfEventsUnavailable = computed(() => {
 const cpuOptions = computed(() => ({
   grid: { left: 40, right: 10, top: 20, bottom: 30 },
   tooltip: { trigger: 'axis' },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'CPU Usage',
@@ -275,8 +293,18 @@ const cpuOptions = computed(() => ({
 const memoryOptions = computed(() => ({
   grid: { left: 40, right: 10, top: 20, bottom: 30 },
   tooltip: { trigger: 'axis' },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'Memory Usage',
@@ -295,9 +323,19 @@ const networkOptions = computed(() => ({
     trigger: 'axis',
     valueFormatter: (value) => formatBytes(value) + '/s',
   },
-  legend: { data: ['Upload', 'Download'] },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: (val) => `${formatThroughput(val)}` } },
+  legend: { data: ['Upload', 'Download'], textStyle: { color: '#e2e8f0' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: (val) => `${formatThroughput(val)}`, color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'Upload',
@@ -322,9 +360,19 @@ const diskOptions = computed(() => ({
     trigger: 'axis',
     valueFormatter: (value) => formatBytes(value) + '/s',
   },
-  legend: { data: ['Read', 'Write'] },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: (val) => `${formatThroughput(val)}` } },
+  legend: { data: ['Read', 'Write'], textStyle: { color: '#e2e8f0' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: (val) => `${formatThroughput(val)}`, color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'Read',
@@ -347,11 +395,32 @@ const diskOptions = computed(() => ({
 const perfEventsOptions = computed(() => ({
   grid: { left: 50, right: 10, top: 30, bottom: 30 },
   tooltip: { trigger: 'axis' },
-  legend: { data: ['IPC', 'L1D Miss %', 'LLC Miss %'], top: 0 },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
+  legend: { data: ['IPC', 'L1D Miss %', 'LLC Miss %'], top: 0, textStyle: { color: '#e2e8f0' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   yAxis: [
-    { type: 'value', name: 'IPC', position: 'left', max: 3, axisLabel: { formatter: '{value}' } },
-    { type: 'value', name: 'Miss %', position: 'right', max: 100, axisLabel: { formatter: '{value}%' } },
+    {
+      type: 'value',
+      name: 'IPC',
+      position: 'left',
+      max: 3,
+      axisLabel: { formatter: '{value}', color: '#e2e8f0' },
+      splitLine: { lineStyle: { color: '#334155' } },
+      axisLine: { lineStyle: { color: '#475569' } },
+    },
+    {
+      type: 'value',
+      name: 'Miss %',
+      position: 'right',
+      max: 100,
+      axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+      splitLine: { show: false },
+      axisLine: { lineStyle: { color: '#475569' } },
+    },
   ],
   series: [
     {
@@ -388,9 +457,19 @@ const branchTlbOptions = computed(() => ({
     trigger: 'axis',
     valueFormatter: (value) => value != null ? value.toFixed(3) + '%' : 'N/A',
   },
-  legend: { data: ['Branch Miss %', 'DTLB Miss %'], top: 0 },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
+  legend: { data: ['Branch Miss %', 'DTLB Miss %'], top: 0, textStyle: { color: '#e2e8f0' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'Branch Miss %',
@@ -417,9 +496,19 @@ const memoryBandwidthOptions = computed(() => ({
     trigger: 'axis',
     valueFormatter: (value) => formatKB(value) + '/s',
   },
-  legend: { data: ['Page In', 'Page Out'], top: 0 },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: (val) => formatKB(val) } },
+  legend: { data: ['Page In', 'Page Out'], top: 0, textStyle: { color: '#e2e8f0' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: (val) => formatKB(val), color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'Page In',
@@ -446,9 +535,19 @@ const swapOptions = computed(() => ({
     trigger: 'axis',
     valueFormatter: (value) => (value != null ? value.toFixed(1) : '0') + ' pages/s',
   },
-  legend: { data: ['Swap In', 'Swap Out'], top: 0 },
-  xAxis: { type: 'category', data: trimmedTimestamps.value },
-  yAxis: { type: 'value', axisLabel: { formatter: '{value}' } },
+  legend: { data: ['Swap In', 'Swap Out'], top: 0, textStyle: { color: '#e2e8f0' } },
+  xAxis: {
+    type: 'category',
+    data: trimmedTimestamps.value,
+    axisLabel: { color: '#e2e8f0' },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
+  yAxis: {
+    type: 'value',
+    axisLabel: { formatter: '{value}', color: '#e2e8f0' },
+    splitLine: { lineStyle: { color: '#334155' } },
+    axisLine: { lineStyle: { color: '#475569' } },
+  },
   series: [
     {
       name: 'Swap In',

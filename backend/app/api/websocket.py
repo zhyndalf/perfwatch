@@ -8,9 +8,11 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from sqlalchemy import select
 
+from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models import User
 from app.services.auth import decode_token
+from app.services.metrics_storage import MetricsBatchWriter, save_all_metrics
 from app.collectors import (
     MetricsAggregator,
     CPUCollector,
@@ -87,6 +89,8 @@ manager = ConnectionManager()
 # Global aggregator instance (will be initialized on first connection)
 _aggregator: Optional[MetricsAggregator] = None
 _aggregator_task: Optional[asyncio.Task] = None
+_metrics_writer: Optional[MetricsBatchWriter] = None
+_background_collection = False
 
 
 def get_aggregator() -> MetricsAggregator:
@@ -102,13 +106,25 @@ def get_aggregator() -> MetricsAggregator:
                 PerfEventsCollector(),
                 MemoryBandwidthCollector(),
             ],
-            interval=5.0,
+            interval=float(settings.SAMPLING_INTERVAL_SECONDS),
         )
     return _aggregator
 
 
+def get_metrics_writer() -> MetricsBatchWriter:
+    """Get or create the global metrics batch writer."""
+    global _metrics_writer
+    if _metrics_writer is None:
+        _metrics_writer = MetricsBatchWriter(batch_size=50, flush_interval=2.0)
+    return _metrics_writer
+
+
 async def broadcast_metrics(snapshot: Dict) -> None:
-    """Callback for the aggregator to broadcast metrics to all clients."""
+    """Callback for the aggregator to broadcast metrics to all clients.
+
+    This function both broadcasts metrics to connected WebSocket clients
+    and persists them to the database for historical queries.
+    """
     message = {
         "type": "metrics",
         "timestamp": snapshot.get("timestamp"),
@@ -123,6 +139,16 @@ async def broadcast_metrics(snapshot: Dict) -> None:
     }
     await manager.broadcast(message)
 
+    # Persist metrics to database for history
+    try:
+        writer = get_metrics_writer()
+        if writer is not None:
+            await writer.enqueue(snapshot)
+        else:
+            await save_all_metrics(snapshot)
+    except Exception as e:
+        logger.error(f"Failed to save metrics to database: {e}")
+
 
 async def start_aggregator_if_needed() -> None:
     """Start the metrics aggregator if not already running."""
@@ -132,6 +158,8 @@ async def start_aggregator_if_needed() -> None:
 
     if not aggregator.is_running and _aggregator_task is None:
         logger.info("Starting metrics aggregator...")
+        writer = get_metrics_writer()
+        await writer.start()
         _aggregator_task = asyncio.create_task(
             aggregator.start(broadcast_metrics)
         )
@@ -140,6 +168,9 @@ async def start_aggregator_if_needed() -> None:
 async def stop_aggregator_if_no_clients() -> None:
     """Stop the aggregator if no clients are connected."""
     global _aggregator_task
+
+    if _background_collection:
+        return
 
     if manager.connection_count == 0 and _aggregator is not None:
         logger.info("No clients connected, stopping aggregator...")
@@ -152,6 +183,31 @@ async def stop_aggregator_if_no_clients() -> None:
             except asyncio.TimeoutError:
                 _aggregator_task.cancel()
             _aggregator_task = None
+        if _metrics_writer is not None:
+            await _metrics_writer.stop()
+
+
+async def start_background_collection() -> None:
+    """Start background metrics collection regardless of WebSocket clients."""
+    global _background_collection
+    _background_collection = True
+    await start_aggregator_if_needed()
+
+
+async def stop_background_collection() -> None:
+    """Stop background metrics collection."""
+    global _background_collection, _aggregator_task
+    _background_collection = False
+    if _aggregator is not None:
+        _aggregator.stop()
+    if _aggregator_task is not None:
+        try:
+            await asyncio.wait_for(_aggregator_task, timeout=2.0)
+        except asyncio.TimeoutError:
+            _aggregator_task.cancel()
+        _aggregator_task = None
+    if _metrics_writer is not None:
+        await _metrics_writer.stop()
 
 
 async def authenticate_websocket(token: Optional[str]) -> Optional[User]:

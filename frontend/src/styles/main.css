@@ -24,12 +24,12 @@
 @layer components {
   /* Card style */
   .card {
-    @apply bg-dark-surface/50 border border-dark-border rounded-xl p-6;
+    @apply bg-dark-surface/90 border border-dark-border rounded-xl p-6 shadow-lg shadow-black/20;
   }
 
   /* Input style */
   .input {
-    @apply w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors;
+    @apply w-full px-4 py-3 bg-dark-surface border border-dark-border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-accent-cyan transition-colors;
   }
 
   /* Button styles */
@@ -47,5 +47,14 @@
   /* Gradient text */
   .text-gradient {
     @apply bg-gradient-to-r from-accent-cyan to-accent-green bg-clip-text text-transparent;
+  }
+
+  /* Boost secondary text contrast */
+  .text-gray-400 {
+    color: #cbd5e1;
+  }
+
+  .text-gray-500 {
+    color: #94a3b8;
   }
 }
