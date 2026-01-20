@@ -1,8 +1,9 @@
 # T012: Dashboard UI
 
-> **Status**: IN_PROGRESS  
-> **Phase**: 2 - Core Metrics  
+> **Status**: COMPLETE ✅
+> **Phase**: 2 - Core Metrics
 > **Estimated Time**: 3-4 hours
+> **Completed**: 2026-01-20
 
 ---
 
@@ -54,10 +55,8 @@ Implement the real-time dashboard UI that consumes the WebSocket metrics stream 
 - WebSocket integration in frontend (JWT, auto-reconnect, status chip, last update)
 - Dashboard layout built with ECharts charts for CPU/Memory/Network/Disk (rolling window, N/A safe)
 - Responsive grid (2-col desktop, stacked mobile), dark theme styles
-
-### Pending ⏳
-- Additional polish/QA on mobile interactions
-- Manual UX pass once more data sources land (advanced metrics, history)
+- Manual QA verified - all metrics streaming correctly
+- 131 backend tests passing (including 6 WebSocket tests)
 
 ---
 

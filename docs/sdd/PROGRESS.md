@@ -1,16 +1,16 @@
 # PerfWatch Progress
 
-> Last Updated: 2026-01-19
+> Last Updated: 2026-01-20
 
-## Overall Progress: 50% Complete
+## Overall Progress: 55% Complete
 
 ```
 Phase 1: Foundation    [██████████] 100% (5/5 tasks) ✅
-Phase 2: Core Metrics  [████████░░] 86%  (6/7 tasks)
+Phase 2: Core Metrics  [██████████] 100% (7/7 tasks) ✅
 Phase 3: Advanced      [░░░░░░░░░░] 0%
 Phase 4: Polish        [░░░░░░░░░░] 0%
 ─────────────────────────────────────
-Total                  [█████░░░░░] 50%  (11/22 tasks)
+Total                  [█████░░░░░] 55%  (12/22 tasks)
 ```
 
 ---
@@ -29,7 +29,7 @@ Total                  [█████░░░░░] 50%  (11/22 tasks)
 
 ---
 
-## Phase 2: Core Metrics [████████░░] 86% (6/7)
+## Phase 2: Core Metrics [██████████] 100% (7/7) ✅ COMPLETE
 
 | Status | Task ID | Name | Est. Time |
 |--------|---------|------|-----------|
@@ -39,9 +39,9 @@ Total                  [█████░░░░░] 50%  (11/22 tasks)
 | ✅ | T009 | Network Collector | 2-3 hrs |
 | ✅ | T010 | Disk Collector | 2-3 hrs |
 | ✅ | T011 | WebSocket Streaming | 2-3 hrs |
-| ⏳ | T012 | Dashboard UI | 3-4 hrs |
+| ✅ | T012 | Dashboard UI | 3-4 hrs |
 
-**Current**: T012 - Dashboard UI
+**Phase 2 Complete!** Core metrics dashboard is live with real-time streaming.
 
 ---
 
@@ -85,10 +85,10 @@ Total                  [█████░░░░░] 50%  (11/22 tasks)
 | Metric | Value |
 |--------|-------|
 | Total Tasks | 22 |
-| Completed | 11 |
-| In Progress | 1 |
+| Completed | 12 |
+| In Progress | 0 |
 | Blocked | 0 |
-| Remaining | 11 |
+| Remaining | 10 |
 | Est. Total Hours | ~52 |
 | Total Tests | 131 |
 
@@ -108,3 +108,5 @@ Total                  [█████░░░░░] 50%  (11/22 tasks)
 | 2026-01-19 | T008 | Memory Collector - RAM and swap metrics, 101 total tests |
 | 2026-01-19 | T009 | Network Collector - Bandwidth and interfaces, 113 total tests |
 | 2026-01-19 | T010 | Disk Collector - Partitions and I/O, 125 total tests |
+| 2026-01-19 | T011 | WebSocket Streaming - Real-time metrics endpoint, 131 total tests |
+| 2026-01-20 | T012 | Dashboard UI - ECharts, WebSocket integration, responsive layout ✅ Phase 2 Complete |

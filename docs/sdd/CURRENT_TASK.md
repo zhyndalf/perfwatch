@@ -1,50 +1,51 @@
 # Current Task
 
-> **Status**: IN_PROGRESS
-> **Task ID**: T012
-> **Task Name**: Dashboard UI
+> **Status**: READY TO START
+> **Task ID**: T013
+> **Task Name**: Perf Events Setup
 
 ---
 
 ## Quick Context
 
-Implement the real-time dashboard UI that consumes `/api/ws/metrics` and renders CPU, Memory, Network, and Disk charts. Use the existing auth store JWT for WS connection, follow the dark-theme UI spec, and ensure responsive (desktop 2-col, mobile stacked) layout with connection status.
+Set up Linux perf_events integration for advanced hardware performance counters. This is the first task of Phase 3 (Advanced Metrics).
 
 ---
 
 ## What's Done (context)
 
-- T011 completed: WebSocket endpoint built, tested (6 tests) and manually verified; docs updated; overall progress 50%, Phase 2 at 86%
-- Created T012 task file with requirements/acceptance criteria
-- Implemented frontend WebSocket integration with auto-reconnect, status chip, and last-update timestamp
-- Built dashboard UI with ECharts for CPU/Memory/Network/Disk, rolling history, responsive layout, and N/A-safe rendering
+- **Phase 1 Complete (5/5)**: Foundation - SDD, Docker, Database, Auth, Vue Base
+- **Phase 2 Complete (7/7)**: Core Metrics - Collectors, WebSocket, Dashboard UI
+- T012 Dashboard UI completed: Real-time charts for CPU/Memory/Network/Disk streaming via WebSocket
+- 131 backend tests passing
 
 ---
 
 ## What's Next
 
-1. Manual QA of dashboard and responsive behavior; tune chart options if needed
-2. Update docs/README/PROGRESS upon completion of T012 deliverables
-3. Consider adding lightweight front-end checks (lint/build) if not already in CI
+1. Review T013 task file at `docs/sdd/04-tasks/phase-3/T013-perf-events-setup.md`
+2. Implement perf_events integration with graceful degradation
+3. Test with and without perf_events availability
 
 ---
 
-## Key Files Created/Modified This Session
+## Key Files from Previous Session
 
-| File | Action | Description |
-|------|--------|-------------|
-| `docs/sdd/04-tasks/phase-2/T012-dashboard-ui.md` | Updated | Task plan + current completion notes |
-| `frontend/src/stores/metrics.js` | Added | Pinia store for WebSocket metrics, history, status |
-| `frontend/src/views/Dashboard.vue` | Updated | Real-time dashboard layout and charts |
+| File | Description |
+|------|-------------|
+| `frontend/src/stores/metrics.js` | Pinia store for WebSocket metrics |
+| `frontend/src/views/Dashboard.vue` | Real-time dashboard with ECharts |
+| `backend/app/api/websocket.py` | WebSocket streaming endpoint |
+| `backend/app/collectors/` | CPU, Memory, Network, Disk collectors |
 
 ---
 
 ## Resume Instructions
 
 **To continue PerfWatch development:**
-1. Implement T012 per `docs/sdd/04-tasks/phase-2/T012-dashboard-ui.md`
-2. Frontend: connect to `/api/ws/metrics` with JWT, add status chip/last-update, build charts for CPU/Memory/Network/Disk (ECharts), handle reconnect/errors, ensure responsive layout
-3. Update docs/README/PROGRESS after UI work and any new tests
+1. Read T013 task file: `docs/sdd/04-tasks/phase-3/T013-perf-events-setup.md`
+2. Start services: `docker compose up -d`
+3. Begin implementing perf_events collector with graceful degradation
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -81,7 +82,11 @@ None currently.
 - T008 COMPLETED: Memory Collector complete
 - T009 COMPLETED: Network Collector complete
 - T010 COMPLETED: Disk Collector complete
-- T011 COMPLETED: WebSocket Streaming (implementation, tests, manual verification)
+- T011 COMPLETED: WebSocket Streaming complete
 
-**Current Session Work**:
-- Starting T012: plan dashboard UI implementation and wire WebSocket data to charts
+**Session 7** (2026-01-20):
+- T012 COMPLETED: Dashboard UI complete - ECharts charts, WebSocket integration, responsive layout
+- **Phase 2 Core Metrics Complete!**
+
+**Next Session**:
+- Start T013: Perf Events Setup (Phase 3)

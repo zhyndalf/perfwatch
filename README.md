@@ -14,7 +14,7 @@ Real-time system performance monitoring web application.
 
 ## Development Progress
 
-> **50% Complete** (11/22 tasks) | Current: T012 - Dashboard UI
+> **55% Complete** (12/22 tasks) | Next: T013 - Perf Events Setup
 
 ```mermaid
 flowchart TB
@@ -27,14 +27,14 @@ flowchart TB
         T001 --> T002 --> T003 --> T004 --> T005
     end
 
-    subgraph P2["Phase 2: Core Metrics (71%)"]
+    subgraph P2["Phase 2: Core Metrics (100%) ✅"]
         T006["✅ T006<br/>Collector Base"]
         T007["✅ T007<br/>CPU"]
         T008["✅ T008<br/>Memory"]
         T009["✅ T009<br/>Network"]
         T010["✅ T010<br/>Disk"]
         T011["✅ T011<br/>WebSocket"]
-        T012["⬜ T012<br/>Dashboard"]
+        T012["✅ T012<br/>Dashboard"]
         T006 --> T007 --> T008 --> T009 --> T010 --> T011 --> T012
     end
 
@@ -63,15 +63,14 @@ flowchart TB
     classDef progress fill:#f39c12,stroke:#e67e22,color:#fff
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
-    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011 done
-    class T012 progress
+    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012 done
     class T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
 ```
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
 | Phase 1: Foundation | ✅ 100% | 5/5 |
-| Phase 2: Core Metrics | 86% | 6/7 |
+| Phase 2: Core Metrics | ✅ 100% | 7/7 |
 | Phase 3: Advanced | 0% | 0/5 |
 | Phase 4: Polish | 0% | 0/5 |
 
