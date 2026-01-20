@@ -199,9 +199,15 @@
             {{ configError }}
           </div>
           <div class="flex items-center justify-between">
-            <span>Perf Events</span>
+            <span>Perf Events (Config)</span>
             <span class="text-white">
               {{ perfEventsEnabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>Perf Events (Availability)</span>
+            <span class="text-white">
+              {{ perfEventsAvailability }}
             </span>
           </div>
           <div class="flex items-center justify-between">
@@ -218,6 +224,56 @@
           </div>
         </div>
       </div>
+
+      <!-- Application Settings -->
+      <div class="bg-dark-surface/50 border border-dark-border rounded-xl p-6">
+        <h2 class="text-accent-cyan font-semibold mb-4">Application Settings</h2>
+
+        <div v-if="configLoading" class="text-gray-400 text-sm">
+          Loading application settings...
+        </div>
+
+        <div v-else class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Sampling Interval (seconds)</label>
+              <input
+                v-model.number="samplingIntervalSeconds"
+                type="number"
+                min="1"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors"
+              />
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input
+                id="perfEventsEnabled"
+                v-model="perfEventsEnabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-dark-border text-accent-cyan focus:ring-accent-cyan"
+              />
+              <label for="perfEventsEnabled" class="text-gray-300 text-sm">Enable perf events</label>
+            </div>
+          </div>
+
+          <div v-if="configError" class="p-3 bg-accent-error/20 border border-accent-error/50 rounded-lg text-accent-error text-sm">
+            {{ configError }}
+          </div>
+
+          <div v-if="configSuccess" class="p-3 bg-accent-green/20 border border-accent-green/50 rounded-lg text-accent-green text-sm">
+            {{ configSuccess }}
+          </div>
+
+          <button
+            type="button"
+            class="px-6 py-2 bg-accent-cyan text-dark-bg font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            :disabled="configSaving"
+            @click="saveConfig"
+          >
+            {{ configSaving ? 'Saving...' : 'Save Application Settings' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -229,10 +285,12 @@ import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api'
 import { useRetentionStore } from '@/stores/retention'
 import { useConfigStore } from '@/stores/config'
+import { useMetricsStore } from '@/stores/metrics'
 
 const authStore = useAuthStore()
 const retentionStore = useRetentionStore()
 const configStore = useConfigStore()
+const metricsStore = useMetricsStore()
 const {
   loading: retentionLoading,
   saving: retentionSaving,
@@ -250,11 +308,20 @@ const {
 
 const {
   loading: configLoading,
+  saving: configSaving,
   error: configError,
+  success: configSuccess,
   samplingIntervalSeconds,
   perfEventsEnabled,
   appVersion,
 } = storeToRefs(configStore)
+
+const perfEventsAvailability = computed(() => {
+  const available = metricsStore.metrics?.perf_events?.available
+  if (available === true) return 'Available'
+  if (available === false) return 'Unsupported'
+  return metricsStore.isConnected ? 'Unknown' : 'Unknown (open Dashboard)'
+})
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -269,10 +336,14 @@ const formatLastLogin = computed(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([
+  const tasks = [
     retentionStore.fetchPolicy(),
     configStore.fetchConfig(),
-  ])
+  ]
+  if (!authStore.user) {
+    tasks.push(authStore.fetchUser())
+  }
+  await Promise.all(tasks)
 })
 
 async function handleChangePassword() {
@@ -315,5 +386,13 @@ async function runCleanup() {
 function formatDate(value) {
   if (!value) return 'Never'
   return new Date(value).toLocaleString()
+}
+
+async function saveConfig() {
+  if (!samplingIntervalSeconds.value || samplingIntervalSeconds.value < 1) {
+    configStore.error = 'Sampling interval must be at least 1 second'
+    return
+  }
+  await configStore.updateConfig()
 }
 </script>

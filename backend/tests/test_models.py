@@ -154,8 +154,10 @@ class TestConfigModel:
         config1 = Config(key="test_key", value={"v": 1})
         db_session.add(config1)
         await db_session.commit()
+        db_session.expunge(config1)
 
         # Try to insert duplicate key
+        db_session.expire_all()
         config2 = Config(key="test_key", value={"v": 2})
         db_session.add(config2)
 

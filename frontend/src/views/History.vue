@@ -205,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { use } from 'echarts/core'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } from 'echarts/components'
@@ -228,6 +228,11 @@ const comparePeriod = ref('hour')
 onMounted(async () => {
   setLastHours(1)
   await loadData()
+})
+
+watch([comparePeriod, compareTo], () => {
+  if (!compareEnabled.value) return
+  applyCompareRange()
 })
 
 // Computed
@@ -300,7 +305,7 @@ const avgValue = computed(() => {
 // Chart options based on metric type
 const chartOptions = computed(() => {
   const baseOptions = {
-    grid: { left: 50, right: 20, top: 40, bottom: 70 },
+    grid: { left: 64, right: 32, top: 40, bottom: 80, containLabel: true },
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(30, 30, 35, 0.95)',
@@ -311,7 +316,7 @@ const chartOptions = computed(() => {
       type: 'category',
       data: historyStore.formattedTimestamps,
       axisLine: { lineStyle: { color: '#3b3b45' } },
-      axisLabel: { color: '#e2e8f0', rotate: 45 },
+      axisLabel: { color: '#e2e8f0', rotate: 45, margin: 12 },
       axisLine: { lineStyle: { color: '#475569' } },
     },
     dataZoom: [
@@ -342,7 +347,7 @@ const chartOptions = computed(() => {
         yAxis: {
           type: 'value',
           max: 100,
-          axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+          axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
           splitLine: { lineStyle: { color: '#334155' } },
           axisLine: { lineStyle: { color: '#475569' } },
         },
@@ -375,7 +380,7 @@ const chartOptions = computed(() => {
         yAxis: {
           type: 'value',
           max: 100,
-          axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+          axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
           splitLine: { lineStyle: { color: '#334155' } },
           axisLine: { lineStyle: { color: '#475569' } },
         },
@@ -413,7 +418,11 @@ const chartOptions = computed(() => {
         },
         yAxis: {
           type: 'value',
-          axisLabel: { formatter: (val) => formatBytes(val) + '/s', color: '#e2e8f0' },
+          axisLabel: {
+            formatter: (val) => formatBytes(val) + '/s',
+            color: '#e2e8f0',
+            margin: 10,
+          },
           splitLine: { lineStyle: { color: '#334155' } },
           axisLine: { lineStyle: { color: '#475569' } },
         },
@@ -464,7 +473,11 @@ const chartOptions = computed(() => {
         },
         yAxis: {
           type: 'value',
-          axisLabel: { formatter: (val) => formatBytes(val) + '/s', color: '#e2e8f0' },
+          axisLabel: {
+            formatter: (val) => formatBytes(val) + '/s',
+            color: '#e2e8f0',
+            margin: 10,
+          },
           splitLine: { lineStyle: { color: '#334155' } },
           axisLine: { lineStyle: { color: '#475569' } },
         },
@@ -513,11 +526,12 @@ const chartOptions = computed(() => {
             : ['IPC', 'L1D Miss %', 'LLC Miss %'],
           textStyle: { color: '#e2e8f0' },
         },
+        grid: { ...baseOptions.grid, right: 48 },
         yAxis: [
           {
             type: 'value',
             name: 'IPC',
-            axisLabel: { color: '#e2e8f0' },
+            axisLabel: { color: '#e2e8f0', margin: 10 },
             splitLine: { lineStyle: { color: '#334155' } },
             axisLine: { lineStyle: { color: '#475569' } },
           },
@@ -526,7 +540,7 @@ const chartOptions = computed(() => {
             name: 'Miss %',
             min: 0,
             max: 100,
-            axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+            axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
             axisLine: { lineStyle: { color: '#475569' } },
             splitLine: { show: false },
           },
@@ -600,7 +614,11 @@ const chartOptions = computed(() => {
         },
         yAxis: {
           type: 'value',
-          axisLabel: { formatter: (val) => formatBytes(val) + '/s', color: '#e2e8f0' },
+          axisLabel: {
+            formatter: (val) => formatBytes(val) + '/s',
+            color: '#e2e8f0',
+            margin: 10,
+          },
           splitLine: { lineStyle: { color: '#334155' } },
           axisLine: { lineStyle: { color: '#475569' } },
         },
@@ -670,6 +688,18 @@ function setLastHours(hours) {
   // Format for datetime-local input (YYYY-MM-DDTHH:mm)
   startTime.value = formatDateTimeLocal(start)
   endTime.value = formatDateTimeLocal(end)
+}
+
+function applyCompareRange() {
+  if (comparePeriod.value === 'hour') {
+    setLastHours(1)
+    return
+  }
+  if (comparePeriod.value === 'day') {
+    setLastHours(24)
+    return
+  }
+  setLastHours(24 * 7)
 }
 
 function formatDateTimeLocal(date) {

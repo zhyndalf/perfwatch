@@ -114,6 +114,8 @@ def get_aggregator() -> MetricsAggregator:
 def get_metrics_writer() -> MetricsBatchWriter:
     """Get or create the global metrics batch writer."""
     global _metrics_writer
+    if _metrics_writer is not None and not _metrics_writer.is_loop_compatible():
+        _metrics_writer = None
     if _metrics_writer is None:
         _metrics_writer = MetricsBatchWriter(batch_size=50, flush_interval=2.0)
     return _metrics_writer
@@ -167,7 +169,7 @@ async def start_aggregator_if_needed() -> None:
 
 async def stop_aggregator_if_no_clients() -> None:
     """Stop the aggregator if no clients are connected."""
-    global _aggregator_task
+    global _aggregator_task, _metrics_writer
 
     if _background_collection:
         return
@@ -185,6 +187,7 @@ async def stop_aggregator_if_no_clients() -> None:
             _aggregator_task = None
         if _metrics_writer is not None:
             await _metrics_writer.stop()
+            _metrics_writer = None
 
 
 async def start_background_collection() -> None:

@@ -89,6 +89,18 @@
 
 ---
 
+## [2026-01-20] - T022 - Polish & Testing
+
+### Changed
+- Fixed websocket batch writer loop handling for tests
+- Adjusted dashboard/history chart layout and Settings UX
+- Updated settings/config UI interactions and data load
+
+### Tests
+- Full backend test suite passed (238 tests)
+
+---
+
 ## Upcoming
 
 *Future changes will be logged here as tasks are completed*

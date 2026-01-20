@@ -30,8 +30,8 @@ async def _noop_lifespan(app: FastAPI):
     yield
 
 
-test_app = FastAPI(lifespan=_noop_lifespan)
-test_app.include_router(ws_module.router)
+ws_test_app = FastAPI(lifespan=_noop_lifespan)
+ws_test_app.include_router(ws_module.router)
 
 
 class StubAggregator:
@@ -146,7 +146,7 @@ class TestWebSocketAuth:
     def test_connection_requires_token(self, websocket_env):
         engine, session_maker, aggregator = websocket_env
 
-        with TestClient(test_app) as client:
+        with TestClient(ws_test_app) as client:
             try:
                 with client.websocket_connect("/api/ws/metrics") as websocket:
                     with pytest.raises(WebSocketDisconnect) as exc:
@@ -162,7 +162,7 @@ class TestWebSocketAuth:
     def test_connection_rejects_invalid_token(self, websocket_env):
         engine, session_maker, aggregator = websocket_env
 
-        with TestClient(test_app) as client:
+        with TestClient(ws_test_app) as client:
             try:
                 with client.websocket_connect("/api/ws/metrics?token=not.a.valid.token") as websocket:
                     with pytest.raises(WebSocketDisconnect) as exc:
@@ -184,7 +184,7 @@ class TestWebSocketMessaging:
         user = create_user_sync(engine)
         token = create_access_token({"sub": str(user.id)})
 
-        with TestClient(test_app) as client:
+        with TestClient(ws_test_app) as client:
             with client.websocket_connect(f"/api/ws/metrics?token={token}") as websocket:
                 websocket.send_json({"type": "ping"})
 
@@ -213,7 +213,7 @@ class TestWebSocketMessaging:
         # Set the aggregator to send our snapshot when started
         aggregator.start_snapshot = snapshot
 
-        with TestClient(test_app) as client:
+        with TestClient(ws_test_app) as client:
             with client.websocket_connect(f"/api/ws/metrics?token={token}") as websocket:
                 message = websocket.receive_json()
 
@@ -238,7 +238,7 @@ class TestWebSocketMessaging:
         # Set the aggregator to send our snapshot when started
         aggregator.start_snapshot = snapshot
 
-        with TestClient(test_app) as client:
+        with TestClient(ws_test_app) as client:
             with client.websocket_connect(f"/api/ws/metrics?token={token}") as ws1:
                 # First client receives the initial broadcast
                 msg1 = ws1.receive_json()
@@ -270,7 +270,7 @@ class TestAggregatorLifecycle:
             "disk": {"read_bytes": 1},
         }
 
-        with TestClient(test_app) as client:
+        with TestClient(ws_test_app) as client:
             with client.websocket_connect(f"/api/ws/metrics?token={token}") as websocket:
                 initial = websocket.receive_json()
                 assert initial["type"] == "metrics"

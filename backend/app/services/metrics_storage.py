@@ -199,20 +199,37 @@ class MetricsBatchWriter:
         self._task: Optional[asyncio.Task] = None
         self._running = False
         self._stop_marker = object()
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def start(self) -> None:
         if self._task is not None:
             return
+        self._loop = asyncio.get_running_loop()
         self._running = True
         self._task = asyncio.create_task(self._run())
 
     async def stop(self) -> None:
         if self._task is None:
             return
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+        if self._loop is not None and current_loop is not None and self._loop is not current_loop:
+            if self._task.done():
+                self._task = None
+            return
         await self._queue.put(self._stop_marker)
         await self._task
         self._task = None
         self._running = False
+
+    def is_loop_compatible(self) -> bool:
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return True
+        return self._loop is None or self._loop is current_loop
 
     async def enqueue(self, snapshot_data: Dict[str, Any]) -> None:
         if not self._running:

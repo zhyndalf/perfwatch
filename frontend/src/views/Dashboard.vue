@@ -263,8 +263,10 @@ const perfEventsUnavailable = computed(() => {
   return perf && perf.available === false
 })
 
+const baseGrid = { left: 56, right: 24, top: 20, bottom: 36, containLabel: true }
+
 const cpuOptions = computed(() => ({
-  grid: { left: 40, right: 10, top: 20, bottom: 30 },
+  grid: baseGrid,
   tooltip: { trigger: 'axis' },
   xAxis: {
     type: 'category',
@@ -291,7 +293,7 @@ const cpuOptions = computed(() => ({
 }))
 
 const memoryOptions = computed(() => ({
-  grid: { left: 40, right: 10, top: 20, bottom: 30 },
+  grid: baseGrid,
   tooltip: { trigger: 'axis' },
   xAxis: {
     type: 'category',
@@ -318,7 +320,7 @@ const memoryOptions = computed(() => ({
 }))
 
 const networkOptions = computed(() => ({
-  grid: { left: 50, right: 10, top: 20, bottom: 30 },
+  grid: { ...baseGrid, left: 68 },
   tooltip: {
     trigger: 'axis',
     valueFormatter: (value) => formatBytes(value) + '/s',
@@ -332,7 +334,7 @@ const networkOptions = computed(() => ({
   },
   yAxis: {
     type: 'value',
-    axisLabel: { formatter: (val) => `${formatThroughput(val)}`, color: '#e2e8f0' },
+    axisLabel: { formatter: (val) => formatThroughputLabel(val), color: '#e2e8f0', margin: 10 },
     splitLine: { lineStyle: { color: '#334155' } },
     axisLine: { lineStyle: { color: '#475569' } },
   },
@@ -355,7 +357,7 @@ const networkOptions = computed(() => ({
 }))
 
 const diskOptions = computed(() => ({
-  grid: { left: 50, right: 10, top: 20, bottom: 30 },
+  grid: { ...baseGrid, left: 68 },
   tooltip: {
     trigger: 'axis',
     valueFormatter: (value) => formatBytes(value) + '/s',
@@ -369,7 +371,7 @@ const diskOptions = computed(() => ({
   },
   yAxis: {
     type: 'value',
-    axisLabel: { formatter: (val) => `${formatThroughput(val)}`, color: '#e2e8f0' },
+    axisLabel: { formatter: (val) => formatThroughputLabel(val), color: '#e2e8f0', margin: 10 },
     splitLine: { lineStyle: { color: '#334155' } },
     axisLine: { lineStyle: { color: '#475569' } },
   },
@@ -393,7 +395,7 @@ const diskOptions = computed(() => ({
 
 // Advanced Metrics Chart Options
 const perfEventsOptions = computed(() => ({
-  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  grid: { ...baseGrid, left: 64, right: 48, top: 30 },
   tooltip: { trigger: 'axis' },
   legend: { data: ['IPC', 'L1D Miss %', 'LLC Miss %'], top: 0, textStyle: { color: '#e2e8f0' } },
   xAxis: {
@@ -408,7 +410,7 @@ const perfEventsOptions = computed(() => ({
       name: 'IPC',
       position: 'left',
       max: 3,
-      axisLabel: { formatter: '{value}', color: '#e2e8f0' },
+      axisLabel: { formatter: '{value}', color: '#e2e8f0', margin: 10 },
       splitLine: { lineStyle: { color: '#334155' } },
       axisLine: { lineStyle: { color: '#475569' } },
     },
@@ -417,7 +419,7 @@ const perfEventsOptions = computed(() => ({
       name: 'Miss %',
       position: 'right',
       max: 100,
-      axisLabel: { formatter: '{value}%', color: '#e2e8f0' },
+      axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
       splitLine: { show: false },
       axisLine: { lineStyle: { color: '#475569' } },
     },
@@ -452,7 +454,7 @@ const perfEventsOptions = computed(() => ({
 }))
 
 const branchTlbOptions = computed(() => ({
-  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  grid: { ...baseGrid, left: 64, top: 30 },
   tooltip: {
     trigger: 'axis',
     valueFormatter: (value) => value != null ? value.toFixed(3) + '%' : 'N/A',
@@ -491,7 +493,7 @@ const branchTlbOptions = computed(() => ({
 }))
 
 const memoryBandwidthOptions = computed(() => ({
-  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  grid: { ...baseGrid, left: 68, top: 30 },
   tooltip: {
     trigger: 'axis',
     valueFormatter: (value) => formatKB(value) + '/s',
@@ -505,7 +507,7 @@ const memoryBandwidthOptions = computed(() => ({
   },
   yAxis: {
     type: 'value',
-    axisLabel: { formatter: (val) => formatKB(val), color: '#e2e8f0' },
+    axisLabel: { formatter: (val) => formatKB(val), color: '#e2e8f0', margin: 10 },
     splitLine: { lineStyle: { color: '#334155' } },
     axisLine: { lineStyle: { color: '#475569' } },
   },
@@ -530,7 +532,7 @@ const memoryBandwidthOptions = computed(() => ({
 }))
 
 const swapOptions = computed(() => ({
-  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  grid: { ...baseGrid, left: 64, top: 30 },
   tooltip: {
     trigger: 'axis',
     valueFormatter: (value) => (value != null ? value.toFixed(1) : '0') + ' pages/s',
@@ -544,7 +546,7 @@ const swapOptions = computed(() => ({
   },
   yAxis: {
     type: 'value',
-    axisLabel: { formatter: '{value}', color: '#e2e8f0' },
+    axisLabel: { formatter: '{value}', color: '#e2e8f0', margin: 10 },
     splitLine: { lineStyle: { color: '#334155' } },
     axisLine: { lineStyle: { color: '#475569' } },
   },
@@ -587,6 +589,12 @@ function formatBytes(value) {
 function formatThroughput(value) {
   if (value === null || value === undefined) return '0 B/s'
   return `${formatBytes(value)}/s`
+}
+
+function formatThroughputLabel(value) {
+  const formatted = formatBytes(value)
+  if (formatted === 'N/A') return formatted
+  return formatted.replace(' ', '') + '/s'
 }
 
 function formatPercent(value) {
