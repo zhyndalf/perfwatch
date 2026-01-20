@@ -13,6 +13,8 @@ from app.collectors.perf_events import (
     PERF_COUNT_HW_INSTRUCTIONS,
     PERF_COUNT_HW_CACHE_L1D,
     PERF_COUNT_HW_CACHE_LL,
+    PERF_COUNT_HW_CACHE_BPU,
+    PERF_COUNT_HW_CACHE_DTLB,
     PERF_COUNT_HW_CACHE_OP_READ,
     PERF_COUNT_HW_CACHE_RESULT_ACCESS,
     PERF_COUNT_HW_CACHE_RESULT_MISS,
@@ -20,6 +22,10 @@ from app.collectors.perf_events import (
     CACHE_L1D_READ_MISS,
     CACHE_LL_READ_ACCESS,
     CACHE_LL_READ_MISS,
+    CACHE_BPU_READ_ACCESS,
+    CACHE_BPU_READ_MISS,
+    CACHE_DTLB_READ_ACCESS,
+    CACHE_DTLB_READ_MISS,
     encode_cache_config,
     _get_arch,
 )
@@ -604,3 +610,324 @@ class TestCacheMetricsIntegration:
             assert "llc_references" in perf_data
             assert "llc_misses" in perf_data
             assert "llc_miss_rate" in perf_data
+
+
+class TestBranchPredictionEventEncoding:
+    """Tests for branch prediction (BPU) event configuration encoding."""
+
+    def test_encode_bpu_read_access(self):
+        """Test encoding for BPU read access events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_BPU,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_ACCESS
+        )
+        # BPU=5, OP_READ=0, RESULT_ACCESS=0 => 5 | (0 << 8) | (0 << 16) = 5
+        assert config == 5
+        assert config == CACHE_BPU_READ_ACCESS
+
+    def test_encode_bpu_read_miss(self):
+        """Test encoding for BPU read miss events (mispredictions)."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_BPU,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_MISS
+        )
+        # BPU=5, OP_READ=0, RESULT_MISS=1 => 5 | (0 << 8) | (1 << 16) = 65541
+        assert config == 0x10005
+        assert config == CACHE_BPU_READ_MISS
+
+
+class TestDTLBEventEncoding:
+    """Tests for Data TLB event configuration encoding."""
+
+    def test_encode_dtlb_read_access(self):
+        """Test encoding for DTLB read access events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_DTLB,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_ACCESS
+        )
+        # DTLB=3, OP_READ=0, RESULT_ACCESS=0 => 3 | (0 << 8) | (0 << 16) = 3
+        assert config == 3
+        assert config == CACHE_DTLB_READ_ACCESS
+
+    def test_encode_dtlb_read_miss(self):
+        """Test encoding for DTLB read miss events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_DTLB,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_MISS
+        )
+        # DTLB=3, OP_READ=0, RESULT_MISS=1 => 3 | (0 << 8) | (1 << 16) = 65539
+        assert config == 0x10003
+        assert config == CACHE_DTLB_READ_MISS
+
+
+class TestBranchPredictionMetricsCollection:
+    """Tests for branch prediction metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_branch_metrics_available(self):
+        """Test branch prediction metrics collection when available."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "branch_references": 20,
+            "branch_misses": 21,
+        }
+
+        def mock_read(fd):
+            values = {
+                20: 1000000,    # branch_references
+                21: 50000,      # branch_misses (5% miss rate)
+            }
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["branch_references"] == 1000000
+            assert data["branch_misses"] == 50000
+            assert data["branch_miss_rate"] == pytest.approx(0.05)
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_collect_branch_metrics_partial(self):
+        """Test branch metrics when only references available."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "branch_references": 20,
+            # No branch_misses
+        }
+
+        def mock_read(fd):
+            values = {20: 500000}
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["branch_references"] == 500000
+            assert data["branch_misses"] is None
+            assert data["branch_miss_rate"] is None
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_branch_miss_rate_zero_references(self):
+        """Test branch miss rate when references is zero."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "branch_references": 20,
+            "branch_misses": 21,
+        }
+
+        def mock_read(fd):
+            return 0  # Both references and misses are zero
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["branch_miss_rate"] is None  # Avoid division by zero
+        finally:
+            collector._fds = {}
+
+
+class TestDTLBMetricsCollection:
+    """Tests for Data TLB metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_dtlb_metrics_available(self):
+        """Test DTLB metrics collection when available."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "dtlb_references": 22,
+            "dtlb_misses": 23,
+        }
+
+        def mock_read(fd):
+            values = {
+                22: 2000000,    # dtlb_references
+                23: 10000,      # dtlb_misses (0.5% miss rate)
+            }
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["dtlb_references"] == 2000000
+            assert data["dtlb_misses"] == 10000
+            assert data["dtlb_miss_rate"] == pytest.approx(0.005)
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_collect_dtlb_metrics_partial(self):
+        """Test DTLB metrics when only references available."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "dtlb_references": 22,
+            # No dtlb_misses
+        }
+
+        def mock_read(fd):
+            values = {22: 1000000}
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["dtlb_references"] == 1000000
+            assert data["dtlb_misses"] is None
+            assert data["dtlb_miss_rate"] is None
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_dtlb_miss_rate_zero_references(self):
+        """Test DTLB miss rate when references is zero."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "dtlb_references": 22,
+            "dtlb_misses": 23,
+        }
+
+        def mock_read(fd):
+            return 0  # Both references and misses are zero
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            assert data["dtlb_miss_rate"] is None  # Avoid division by zero
+        finally:
+            collector._fds = {}
+
+
+class TestAllCPUPerfMetricsCollection:
+    """Tests for full CPU performance metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_all_perf_metrics(self):
+        """Test full collection of all CPU performance metrics."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "cycles": 10,
+            "instructions": 11,
+            "l1d_references": 12,
+            "l1d_misses": 13,
+            "llc_references": 14,
+            "llc_misses": 15,
+            "branch_references": 16,
+            "branch_misses": 17,
+            "dtlb_references": 18,
+            "dtlb_misses": 19,
+        }
+
+        def mock_read(fd):
+            values = {
+                10: 10000000,   # cycles
+                11: 8000000,    # instructions (0.8 IPC)
+                12: 5000000,    # l1d_references
+                13: 50000,      # l1d_misses (1% miss rate)
+                14: 1000000,    # llc_references
+                15: 100000,     # llc_misses (10% miss rate)
+                16: 2000000,    # branch_references
+                17: 40000,      # branch_misses (2% miss rate)
+                18: 3000000,    # dtlb_references
+                19: 3000,       # dtlb_misses (0.1% miss rate)
+            }
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            # CPU counters
+            assert data["cycles"] == 10000000
+            assert data["instructions"] == 8000000
+            assert data["ipc"] == pytest.approx(0.8)
+            # L1D cache
+            assert data["l1d_references"] == 5000000
+            assert data["l1d_misses"] == 50000
+            assert data["l1d_miss_rate"] == pytest.approx(0.01)
+            # LLC
+            assert data["llc_references"] == 1000000
+            assert data["llc_misses"] == 100000
+            assert data["llc_miss_rate"] == pytest.approx(0.1)
+            # Branch prediction
+            assert data["branch_references"] == 2000000
+            assert data["branch_misses"] == 40000
+            assert data["branch_miss_rate"] == pytest.approx(0.02)
+            # DTLB
+            assert data["dtlb_references"] == 3000000
+            assert data["dtlb_misses"] == 3000
+            assert data["dtlb_miss_rate"] == pytest.approx(0.001)
+        finally:
+            collector._fds = {}
+
+
+class TestCPUPerfMetricsIntegration:
+    """Integration tests for all CPU performance metrics."""
+
+    @pytest.mark.asyncio
+    async def test_all_metrics_in_aggregator(self):
+        """Test that all CPU performance metrics appear in aggregator output."""
+        perf_collector = PerfEventsCollector()
+        aggregator = MetricsAggregator(collectors=[perf_collector])
+
+        snapshot = await aggregator.collect_all()
+
+        assert "perf_events" in snapshot
+        perf_data = snapshot["perf_events"]
+        assert "available" in perf_data
+
+        # All metric fields should exist (may be None if unavailable)
+        if perf_data["available"]:
+            # CPU counters
+            assert "cycles" in perf_data
+            assert "instructions" in perf_data
+            assert "ipc" in perf_data
+            # L1D cache
+            assert "l1d_references" in perf_data
+            assert "l1d_misses" in perf_data
+            assert "l1d_miss_rate" in perf_data
+            # LLC
+            assert "llc_references" in perf_data
+            assert "llc_misses" in perf_data
+            assert "llc_miss_rate" in perf_data
+            # Branch prediction
+            assert "branch_references" in perf_data
+            assert "branch_misses" in perf_data
+            assert "branch_miss_rate" in perf_data
+            # DTLB
+            assert "dtlb_references" in perf_data
+            assert "dtlb_misses" in perf_data
+            assert "dtlb_miss_rate" in perf_data

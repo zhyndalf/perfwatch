@@ -12,6 +12,17 @@ function createHistory() {
     networkDown: [],
     diskRead: [],
     diskWrite: [],
+    // Advanced metrics - perf_events
+    ipc: [],
+    l1dMissRate: [],
+    llcMissRate: [],
+    branchMissRate: [],
+    dtlbMissRate: [],
+    // Advanced metrics - memory_bandwidth
+    pageIn: [],
+    pageOut: [],
+    swapIn: [],
+    swapOut: [],
   }
 }
 
@@ -28,6 +39,8 @@ export const useMetricsStore = defineStore('metrics', {
       memory: null,
       network: null,
       disk: null,
+      perf_events: null,
+      memory_bandwidth: null,
     },
     history: createHistory(),
   }),
@@ -144,6 +157,8 @@ export const useMetricsStore = defineStore('metrics', {
         memory: data.memory || null,
         network: data.network || null,
         disk: data.disk || null,
+        perf_events: data.perf_events || null,
+        memory_bandwidth: data.memory_bandwidth || null,
       }
       this.lastUpdate = timestamp
 
@@ -161,6 +176,21 @@ export const useMetricsStore = defineStore('metrics', {
       history.networkDown.push(data.network?.bytes_recv_per_sec ?? null)
       history.diskRead.push(data.disk?.io?.read_bytes_per_sec ?? null)
       history.diskWrite.push(data.disk?.io?.write_bytes_per_sec ?? null)
+
+      // Advanced metrics - perf_events (convert rates to percentages for display)
+      const perf = data.perf_events
+      history.ipc.push(perf?.ipc ?? null)
+      history.l1dMissRate.push(perf?.l1d_miss_rate != null ? perf.l1d_miss_rate * 100 : null)
+      history.llcMissRate.push(perf?.llc_miss_rate != null ? perf.llc_miss_rate * 100 : null)
+      history.branchMissRate.push(perf?.branch_miss_rate != null ? perf.branch_miss_rate * 100 : null)
+      history.dtlbMissRate.push(perf?.dtlb_miss_rate != null ? perf.dtlb_miss_rate * 100 : null)
+
+      // Advanced metrics - memory_bandwidth (KB/sec)
+      const membw = data.memory_bandwidth
+      history.pageIn.push(membw?.pgpgin_per_sec ?? null)
+      history.pageOut.push(membw?.pgpgout_per_sec ?? null)
+      history.swapIn.push(membw?.pswpin_per_sec ?? null)
+      history.swapOut.push(membw?.pswpout_per_sec ?? null)
 
       if (history.timestamps.length > MAX_POINTS) {
         Object.keys(history).forEach((key) => {

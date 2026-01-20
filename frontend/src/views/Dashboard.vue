@@ -87,6 +87,97 @@
         <VChart :option="diskOptions" class="h-56" autoresize />
       </div>
     </div>
+
+    <!-- Advanced Metrics Section -->
+    <div v-if="hasPerfEvents || hasMemoryBandwidth" class="space-y-4">
+      <h2 class="text-xl font-semibold text-white">Advanced Metrics</h2>
+      <p class="text-gray-400 text-sm">Hardware performance counters and memory I/O</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- IPC & Cache Misses -->
+        <div v-if="hasPerfEvents" class="card space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-white font-semibold">CPU Performance</h2>
+              <p class="text-gray-500 text-sm">IPC and Cache Miss Rates</p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold text-blue-400">
+                {{ formatNumber(metricsStore.metrics.perf_events?.ipc, 2) ?? 'N/A' }}
+                <span class="text-sm font-normal text-gray-400">IPC</span>
+              </p>
+              <p class="text-gray-500 text-xs">
+                L1D: {{ formatPercent(metricsStore.metrics.perf_events?.l1d_miss_rate) }} |
+                LLC: {{ formatPercent(metricsStore.metrics.perf_events?.llc_miss_rate) }}
+              </p>
+            </div>
+          </div>
+          <VChart :option="perfEventsOptions" class="h-56" autoresize />
+        </div>
+
+        <!-- Branch Prediction & TLB -->
+        <div v-if="hasPerfEvents" class="card space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-white font-semibold">Branch & TLB</h2>
+              <p class="text-gray-500 text-sm">Misprediction and TLB miss rates</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-400">
+                Branch: <span class="text-rose-400">{{ formatPercent(metricsStore.metrics.perf_events?.branch_miss_rate) }}</span>
+              </p>
+              <p class="text-sm text-gray-400">
+                DTLB: <span class="text-amber-400">{{ formatPercent(metricsStore.metrics.perf_events?.dtlb_miss_rate) }}</span>
+              </p>
+            </div>
+          </div>
+          <VChart :option="branchTlbOptions" class="h-56" autoresize />
+        </div>
+
+        <!-- Memory Bandwidth - Page I/O -->
+        <div v-if="hasMemoryBandwidth" class="card space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-white font-semibold">Memory I/O</h2>
+              <p class="text-gray-500 text-sm">Page cache throughput (KB/sec)</p>
+            </div>
+            <div class="text-right text-sm text-gray-400">
+              <p>In: <span class="text-teal-400">{{ formatKB(metricsStore.metrics.memory_bandwidth?.pgpgin_per_sec) }}/s</span></p>
+              <p>Out: <span class="text-orange-400">{{ formatKB(metricsStore.metrics.memory_bandwidth?.pgpgout_per_sec) }}/s</span></p>
+            </div>
+          </div>
+          <VChart :option="memoryBandwidthOptions" class="h-56" autoresize />
+        </div>
+
+        <!-- Swap Activity -->
+        <div v-if="hasMemoryBandwidth" class="card space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-white font-semibold">Swap Activity</h2>
+              <p class="text-gray-500 text-sm">Swap in/out (pages/sec)</p>
+            </div>
+            <div class="text-right text-sm text-gray-400">
+              <p>In: <span class="text-pink-400">{{ formatNumber(metricsStore.metrics.memory_bandwidth?.pswpin_per_sec, 1) ?? '0' }}</span></p>
+              <p>Out: <span class="text-violet-400">{{ formatNumber(metricsStore.metrics.memory_bandwidth?.pswpout_per_sec, 1) ?? '0' }}</span></p>
+            </div>
+          </div>
+          <VChart :option="swapOptions" class="h-56" autoresize />
+        </div>
+      </div>
+    </div>
+
+    <!-- Perf Events Unavailable Notice -->
+    <div v-if="perfEventsUnavailable" class="card bg-dark-card/50 border-dashed">
+      <div class="flex items-center gap-3 text-gray-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+          <p class="text-sm font-medium">Hardware Performance Counters Unavailable</p>
+          <p class="text-xs text-gray-500">perf_events requires elevated privileges or kernel support</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -147,6 +238,21 @@ const perCoreMax = computed(() => {
   const cores = metricsStore.metrics.cpu?.per_core
   if (!cores || !cores.length) return null
   return Math.max(...cores.map((v) => Number(v) || 0)).toFixed(1)
+})
+
+// Advanced metrics availability
+const hasPerfEvents = computed(() => {
+  return metricsStore.metrics.perf_events?.available === true
+})
+
+const hasMemoryBandwidth = computed(() => {
+  return metricsStore.metrics.memory_bandwidth?.available === true
+})
+
+const perfEventsUnavailable = computed(() => {
+  // Show notice if we received perf_events data but it's unavailable
+  const perf = metricsStore.metrics.perf_events
+  return perf && perf.available === false
 })
 
 const cpuOptions = computed(() => ({
@@ -237,9 +343,135 @@ const diskOptions = computed(() => ({
   ],
 }))
 
-function formatNumber(value) {
+// Advanced Metrics Chart Options
+const perfEventsOptions = computed(() => ({
+  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['IPC', 'L1D Miss %', 'LLC Miss %'], top: 0 },
+  xAxis: { type: 'category', data: trimmedTimestamps.value },
+  yAxis: [
+    { type: 'value', name: 'IPC', position: 'left', max: 3, axisLabel: { formatter: '{value}' } },
+    { type: 'value', name: 'Miss %', position: 'right', max: 100, axisLabel: { formatter: '{value}%' } },
+  ],
+  series: [
+    {
+      name: 'IPC',
+      type: 'line',
+      showSymbol: false,
+      yAxisIndex: 0,
+      data: metricsStore.history.ipc.slice(-60),
+      lineStyle: { color: '#3b82f6' },
+      areaStyle: { opacity: 0.1 },
+    },
+    {
+      name: 'L1D Miss %',
+      type: 'line',
+      showSymbol: false,
+      yAxisIndex: 1,
+      data: metricsStore.history.l1dMissRate.slice(-60),
+      lineStyle: { color: '#22c55e' },
+    },
+    {
+      name: 'LLC Miss %',
+      type: 'line',
+      showSymbol: false,
+      yAxisIndex: 1,
+      data: metricsStore.history.llcMissRate.slice(-60),
+      lineStyle: { color: '#f59e0b' },
+    },
+  ],
+}))
+
+const branchTlbOptions = computed(() => ({
+  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  tooltip: {
+    trigger: 'axis',
+    valueFormatter: (value) => value != null ? value.toFixed(3) + '%' : 'N/A',
+  },
+  legend: { data: ['Branch Miss %', 'DTLB Miss %'], top: 0 },
+  xAxis: { type: 'category', data: trimmedTimestamps.value },
+  yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
+  series: [
+    {
+      name: 'Branch Miss %',
+      type: 'line',
+      showSymbol: false,
+      data: metricsStore.history.branchMissRate.slice(-60),
+      lineStyle: { color: '#f43f5e' },
+      areaStyle: { opacity: 0.1 },
+    },
+    {
+      name: 'DTLB Miss %',
+      type: 'line',
+      showSymbol: false,
+      data: metricsStore.history.dtlbMissRate.slice(-60),
+      lineStyle: { color: '#f59e0b' },
+      areaStyle: { opacity: 0.1 },
+    },
+  ],
+}))
+
+const memoryBandwidthOptions = computed(() => ({
+  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  tooltip: {
+    trigger: 'axis',
+    valueFormatter: (value) => formatKB(value) + '/s',
+  },
+  legend: { data: ['Page In', 'Page Out'], top: 0 },
+  xAxis: { type: 'category', data: trimmedTimestamps.value },
+  yAxis: { type: 'value', axisLabel: { formatter: (val) => formatKB(val) } },
+  series: [
+    {
+      name: 'Page In',
+      type: 'line',
+      showSymbol: false,
+      data: metricsStore.history.pageIn.slice(-60),
+      lineStyle: { color: '#14b8a6' },
+      areaStyle: { opacity: 0.1 },
+    },
+    {
+      name: 'Page Out',
+      type: 'line',
+      showSymbol: false,
+      data: metricsStore.history.pageOut.slice(-60),
+      lineStyle: { color: '#f97316' },
+      areaStyle: { opacity: 0.1 },
+    },
+  ],
+}))
+
+const swapOptions = computed(() => ({
+  grid: { left: 50, right: 10, top: 30, bottom: 30 },
+  tooltip: {
+    trigger: 'axis',
+    valueFormatter: (value) => (value != null ? value.toFixed(1) : '0') + ' pages/s',
+  },
+  legend: { data: ['Swap In', 'Swap Out'], top: 0 },
+  xAxis: { type: 'category', data: trimmedTimestamps.value },
+  yAxis: { type: 'value', axisLabel: { formatter: '{value}' } },
+  series: [
+    {
+      name: 'Swap In',
+      type: 'line',
+      showSymbol: false,
+      data: metricsStore.history.swapIn.slice(-60),
+      lineStyle: { color: '#ec4899' },
+      areaStyle: { opacity: 0.1 },
+    },
+    {
+      name: 'Swap Out',
+      type: 'line',
+      showSymbol: false,
+      data: metricsStore.history.swapOut.slice(-60),
+      lineStyle: { color: '#8b5cf6' },
+      areaStyle: { opacity: 0.1 },
+    },
+  ],
+}))
+
+function formatNumber(value, decimals = 1) {
   if (value === null || value === undefined) return null
-  return Number(value).toFixed(1)
+  return Number(value).toFixed(decimals)
 }
 
 function formatBytes(value) {
@@ -256,5 +488,20 @@ function formatBytes(value) {
 function formatThroughput(value) {
   if (value === null || value === undefined) return '0 B/s'
   return `${formatBytes(value)}/s`
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined) return 'N/A'
+  return (Number(value) * 100).toFixed(2) + '%'
+}
+
+function formatKB(value) {
+  if (value === null || value === undefined) return 'N/A'
+  const kb = Number(value)
+  if (Number.isNaN(kb)) return 'N/A'
+  if (kb === 0) return '0 KB'
+  if (kb < 1024) return kb.toFixed(1) + ' KB'
+  if (kb < 1024 * 1024) return (kb / 1024).toFixed(1) + ' MB'
+  return (kb / (1024 * 1024)).toFixed(1) + ' GB'
 }
 </script>

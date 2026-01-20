@@ -18,6 +18,7 @@ from app.collectors import (
     NetworkCollector,
     DiskCollector,
     PerfEventsCollector,
+    MemoryBandwidthCollector,
 )
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,7 @@ def get_aggregator() -> MetricsAggregator:
                 NetworkCollector(),
                 DiskCollector(),
                 PerfEventsCollector(),
+                MemoryBandwidthCollector(),
             ],
             interval=5.0,
         )
@@ -116,6 +118,7 @@ async def broadcast_metrics(snapshot: Dict) -> None:
             "network": snapshot.get("network"),
             "disk": snapshot.get("disk"),
             "perf_events": snapshot.get("perf_events"),
+            "memory_bandwidth": snapshot.get("memory_bandwidth"),
         }
     }
     await manager.broadcast(message)

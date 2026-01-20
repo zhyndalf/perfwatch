@@ -87,6 +87,38 @@ class PerfEventsMetrics(BaseModel):
     llc_references: Optional[int] = Field(None, description="LLC accesses")
     llc_misses: Optional[int] = Field(None, description="LLC misses")
     llc_miss_rate: Optional[float] = Field(None, description="LLC miss rate (0.0-1.0)")
+    # Branch prediction
+    branch_references: Optional[int] = Field(None, description="Branch predictions")
+    branch_misses: Optional[int] = Field(None, description="Branch mispredictions")
+    branch_miss_rate: Optional[float] = Field(None, description="Branch misprediction rate (0.0-1.0)")
+    # Data TLB
+    dtlb_references: Optional[int] = Field(None, description="Data TLB accesses")
+    dtlb_misses: Optional[int] = Field(None, description="Data TLB misses")
+    dtlb_miss_rate: Optional[float] = Field(None, description="Data TLB miss rate (0.0-1.0)")
+
+
+# === Memory Bandwidth Metrics ===
+
+class MemoryBandwidthMetrics(BaseModel):
+    """Memory bandwidth metrics from /proc/vmstat.
+
+    These metrics track disk ↔ memory I/O activity (page cache operations).
+    Note: This is not true CPU ↔ memory bandwidth, which requires uncore counters.
+    """
+
+    available: bool = Field(False, description="Whether metrics are available")
+    # Page I/O rates (from vmstat pgpgin/pgpgout, in KB/sec)
+    pgpgin_per_sec: Optional[float] = Field(None, description="Pages read from disk (KB/sec)")
+    pgpgout_per_sec: Optional[float] = Field(None, description="Pages written to disk (KB/sec)")
+    # Swap rates (pages/sec)
+    pswpin_per_sec: Optional[float] = Field(None, description="Pages swapped in per second")
+    pswpout_per_sec: Optional[float] = Field(None, description="Pages swapped out per second")
+    # Aggregated metrics (bytes/sec)
+    page_io_bytes_per_sec: Optional[float] = Field(None, description="Total page I/O (bytes/sec)")
+    swap_io_bytes_per_sec: Optional[float] = Field(None, description="Swap I/O (bytes/sec)")
+    # Page fault rates
+    pgfault_per_sec: Optional[float] = Field(None, description="Page faults per second")
+    pgmajfault_per_sec: Optional[float] = Field(None, description="Major page faults per second")
 
 
 # === Disk Metrics ===
@@ -135,6 +167,7 @@ class MetricsSnapshot(BaseModel):
     network: Optional[Dict[str, Any]] = Field(None, description="Network metrics")
     disk: Optional[Dict[str, Any]] = Field(None, description="Disk metrics")
     perf_events: Optional[Dict[str, Any]] = Field(None, description="Hardware perf counters")
+    memory_bandwidth: Optional[Dict[str, Any]] = Field(None, description="Memory I/O bandwidth")
 
     model_config = ConfigDict(from_attributes=True)
 

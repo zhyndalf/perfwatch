@@ -94,6 +94,30 @@ CACHE_LL_READ_MISS = encode_cache_config(
     PERF_COUNT_HW_CACHE_RESULT_MISS
 )
 
+# Branch prediction unit cache events
+CACHE_BPU_READ_ACCESS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_BPU,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_ACCESS
+)
+CACHE_BPU_READ_MISS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_BPU,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_MISS
+)
+
+# Data TLB cache events
+CACHE_DTLB_READ_ACCESS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_DTLB,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_ACCESS
+)
+CACHE_DTLB_READ_MISS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_DTLB,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_MISS
+)
+
 
 class PerfEventAttr(ctypes.Structure):
     """Structure matching struct perf_event_attr from linux/perf_event.h.
@@ -151,7 +175,9 @@ class PerfEventsCollector(BaseCollector):
     - IPC (Instructions Per Cycle)
     - L1 data cache references and misses
     - LLC (Last Level Cache) references and misses
-    - Cache miss rates
+    - Branch prediction references and misses (mispredicts)
+    - Data TLB references and misses
+    - Miss rates for all cache-like counters
 
     This collector uses the Linux perf_events interface via ctypes
     to read hardware performance counters without external dependencies.
@@ -305,9 +331,10 @@ class PerfEventsCollector(BaseCollector):
         """Open file descriptors for the events we want to monitor.
 
         Returns:
-            True if at least one event was successfully opened.
+            True if cycles AND instructions were successfully opened.
+            These are required for IPC calculation, which is the core metric.
         """
-        # Hardware events (cycles, instructions)
+        # Hardware events (cycles, instructions) - REQUIRED for meaningful data
         hw_events = {
             "cycles": PERF_COUNT_HW_CPU_CYCLES,
             "instructions": PERF_COUNT_HW_INSTRUCTIONS,
@@ -337,7 +364,49 @@ class PerfEventsCollector(BaseCollector):
             else:
                 logger.debug(f"perf_events: Failed to open {name} counter")
 
-        return len(self._fds) > 0
+        # Branch prediction unit events
+        bpu_events = {
+            "branch_references": CACHE_BPU_READ_ACCESS,
+            "branch_misses": CACHE_BPU_READ_MISS,
+        }
+
+        for name, config in bpu_events.items():
+            fd = self._perf_event_open(PERF_TYPE_HW_CACHE, config)
+            if fd >= 0:
+                self._fds[name] = fd
+                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
+            else:
+                logger.debug(f"perf_events: Failed to open {name} counter")
+
+        # Data TLB events
+        dtlb_events = {
+            "dtlb_references": CACHE_DTLB_READ_ACCESS,
+            "dtlb_misses": CACHE_DTLB_READ_MISS,
+        }
+
+        for name, config in dtlb_events.items():
+            fd = self._perf_event_open(PERF_TYPE_HW_CACHE, config)
+            if fd >= 0:
+                self._fds[name] = fd
+                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
+            else:
+                logger.debug(f"perf_events: Failed to open {name} counter")
+
+        # Require cycles AND instructions for meaningful metrics (IPC calculation)
+        # Without these, perf_events isn't truly useful
+        has_core_counters = "cycles" in self._fds and "instructions" in self._fds
+        if not has_core_counters:
+            logger.info("perf_events: cycles/instructions unavailable - marking as unavailable")
+            # Close any partially opened fds
+            for name, fd in self._fds.items():
+                try:
+                    os.close(fd)
+                except Exception:
+                    pass
+            self._fds.clear()
+            return False
+
+        return True
 
     def _read_counter(self, fd: int) -> Optional[int]:
         """Read a counter value from a file descriptor.
@@ -383,6 +452,12 @@ class PerfEventsCollector(BaseCollector):
             - llc_references: int - LLC accesses (if available)
             - llc_misses: int - LLC misses (if available)
             - llc_miss_rate: float - LLC miss rate (if available)
+            - branch_references: int - Branch predictions (if available)
+            - branch_misses: int - Branch mispredictions (if available)
+            - branch_miss_rate: float - Branch misprediction rate (if available)
+            - dtlb_references: int - Data TLB accesses (if available)
+            - dtlb_misses: int - Data TLB misses (if available)
+            - dtlb_miss_rate: float - Data TLB miss rate (if available)
         """
         # Check availability (will initialize if needed)
         if not self.is_available():
@@ -430,6 +505,36 @@ class PerfEventsCollector(BaseCollector):
         if llc_references is not None and llc_misses is not None and llc_references > 0:
             llc_miss_rate = llc_misses / llc_references
 
+        # Read branch prediction counters
+        branch_references = None
+        branch_misses = None
+
+        if "branch_references" in self._fds:
+            branch_references = self._read_counter(self._fds["branch_references"])
+
+        if "branch_misses" in self._fds:
+            branch_misses = self._read_counter(self._fds["branch_misses"])
+
+        # Calculate branch misprediction rate
+        branch_miss_rate = None
+        if branch_references is not None and branch_misses is not None and branch_references > 0:
+            branch_miss_rate = branch_misses / branch_references
+
+        # Read Data TLB counters
+        dtlb_references = None
+        dtlb_misses = None
+
+        if "dtlb_references" in self._fds:
+            dtlb_references = self._read_counter(self._fds["dtlb_references"])
+
+        if "dtlb_misses" in self._fds:
+            dtlb_misses = self._read_counter(self._fds["dtlb_misses"])
+
+        # Calculate DTLB miss rate
+        dtlb_miss_rate = None
+        if dtlb_references is not None and dtlb_misses is not None and dtlb_references > 0:
+            dtlb_miss_rate = dtlb_misses / dtlb_references
+
         return {
             "available": True,
             # CPU counters
@@ -444,6 +549,14 @@ class PerfEventsCollector(BaseCollector):
             "llc_references": llc_references,
             "llc_misses": llc_misses,
             "llc_miss_rate": llc_miss_rate,
+            # Branch prediction
+            "branch_references": branch_references,
+            "branch_misses": branch_misses,
+            "branch_miss_rate": branch_miss_rate,
+            # Data TLB
+            "dtlb_references": dtlb_references,
+            "dtlb_misses": dtlb_misses,
+            "dtlb_miss_rate": dtlb_miss_rate,
         }
 
     def close(self) -> None:
