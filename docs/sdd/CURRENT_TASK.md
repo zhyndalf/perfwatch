@@ -1,14 +1,14 @@
 # Current Task
 
 > **Status**: READY TO START
-> **Task ID**: T014
-> **Task Name**: Cache Metrics
+> **Task ID**: T015
+> **Task Name**: CPU Perf Metrics
 
 ---
 
 ## Quick Context
 
-Implement cache miss rate collection using perf_events hardware counters. This builds on T013 to add cache performance metrics.
+Extend CPU performance metrics with additional perf_events counters. This may include branch predictions, TLB metrics, or other CPU-specific counters.
 
 ---
 
@@ -16,18 +16,17 @@ Implement cache miss rate collection using perf_events hardware counters. This b
 
 - **Phase 1 Complete (5/5)**: Foundation - SDD, Docker, Database, Auth, Vue Base
 - **Phase 2 Complete (7/7)**: Core Metrics - Collectors, WebSocket, Dashboard UI
-- **Phase 3 Started (1/5)**: T013 Perf Events Setup completed
-- T013 Perf Events: PerfEventsCollector with ctypes syscall, graceful degradation
-- 157 backend tests passing
+- **Phase 3 In Progress (2/5)**: T013 Perf Events, T014 Cache Metrics completed
+- T014 Cache Metrics: L1D and LLC cache miss rates added to PerfEventsCollector
+- 166 backend tests passing
 
 ---
 
 ## What's Next
 
-1. Review T014 task file (to be created)
-2. Add cache miss/hit counters to PerfEventsCollector
-3. Calculate cache miss rate metrics
-4. Update dashboard with cache metrics visualization
+1. Review T015 task file (to be created)
+2. Add additional CPU performance counters (branches, TLB, etc.)
+3. Update schema and tests
 
 ---
 
@@ -35,10 +34,9 @@ Implement cache miss rate collection using perf_events hardware counters. This b
 
 | File | Description |
 |------|-------------|
-| `backend/app/collectors/perf_events.py` | Linux perf_events collector (NEW) |
-| `backend/app/schemas/metrics.py` | PerfEventsMetrics schema added |
-| `backend/app/api/websocket.py` | Now includes perf_events in stream |
-| `backend/tests/test_perf_events.py` | 26 tests for perf_events |
+| `backend/app/collectors/perf_events.py` | Now includes cache metrics (L1D, LLC) |
+| `backend/app/schemas/metrics.py` | PerfEventsMetrics with cache fields |
+| `backend/tests/test_perf_events.py` | 35 tests for perf_events |
 
 ---
 
@@ -46,8 +44,8 @@ Implement cache miss rate collection using perf_events hardware counters. This b
 
 **To continue PerfWatch development:**
 1. Start services: `docker compose up -d`
-2. Extend perf_events collector with cache metrics
-3. Note: perf_events may not work in unprivileged Docker containers
+2. Add more CPU performance counters to perf_events collector
+3. Note: perf_events may not work in unprivileged Docker containers or VMs
 
 **Project Location**: `/home/zhyndalf/vibeCoding/perfwatch`
 **GitHub**: https://github.com/zhyndalf/perfwatch
@@ -92,7 +90,8 @@ None currently.
 
 **Session 8** (2026-01-20):
 - T013 COMPLETED: Perf Events Setup - Linux perf_events with ctypes, cycles/instructions/IPC metrics
-- **Phase 3 Advanced Metrics Started!**
+- T014 COMPLETED: Cache Metrics - L1D and LLC cache miss rates added
+- **Phase 3 Advanced Metrics 40% complete!**
 
 **Next Session**:
-- Start T014: Cache Metrics
+- Start T015: CPU Perf Metrics

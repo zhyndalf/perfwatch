@@ -8,8 +8,19 @@ from app.collectors.perf_events import (
     PerfEventsCollector,
     PerfEventAttr,
     PERF_TYPE_HARDWARE,
+    PERF_TYPE_HW_CACHE,
     PERF_COUNT_HW_CPU_CYCLES,
     PERF_COUNT_HW_INSTRUCTIONS,
+    PERF_COUNT_HW_CACHE_L1D,
+    PERF_COUNT_HW_CACHE_LL,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_ACCESS,
+    PERF_COUNT_HW_CACHE_RESULT_MISS,
+    CACHE_L1D_READ_ACCESS,
+    CACHE_L1D_READ_MISS,
+    CACHE_LL_READ_ACCESS,
+    CACHE_LL_READ_MISS,
+    encode_cache_config,
     _get_arch,
 )
 from app.collectors.aggregator import MetricsAggregator
@@ -370,3 +381,226 @@ class TestPerfEventsCleanup:
             collector.close()
 
         assert collector._fds == {}
+
+
+class TestCacheEventEncoding:
+    """Tests for cache event configuration encoding."""
+
+    def test_encode_cache_config_l1d_read_access(self):
+        """Test encoding for L1D read access events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_L1D,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_ACCESS
+        )
+        # L1D=0, OP_READ=0, RESULT_ACCESS=0 => 0 | (0 << 8) | (0 << 16) = 0
+        assert config == 0
+        assert config == CACHE_L1D_READ_ACCESS
+
+    def test_encode_cache_config_l1d_read_miss(self):
+        """Test encoding for L1D read miss events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_L1D,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_MISS
+        )
+        # L1D=0, OP_READ=0, RESULT_MISS=1 => 0 | (0 << 8) | (1 << 16) = 65536
+        assert config == 0x10000
+        assert config == CACHE_L1D_READ_MISS
+
+    def test_encode_cache_config_llc_read_access(self):
+        """Test encoding for LLC read access events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_LL,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_ACCESS
+        )
+        # LL=2, OP_READ=0, RESULT_ACCESS=0 => 2 | (0 << 8) | (0 << 16) = 2
+        assert config == 2
+        assert config == CACHE_LL_READ_ACCESS
+
+    def test_encode_cache_config_llc_read_miss(self):
+        """Test encoding for LLC read miss events."""
+        config = encode_cache_config(
+            PERF_COUNT_HW_CACHE_LL,
+            PERF_COUNT_HW_CACHE_OP_READ,
+            PERF_COUNT_HW_CACHE_RESULT_MISS
+        )
+        # LL=2, OP_READ=0, RESULT_MISS=1 => 2 | (0 << 8) | (1 << 16) = 65538
+        assert config == 0x10002
+        assert config == CACHE_LL_READ_MISS
+
+
+class TestCacheMetricsCollection:
+    """Tests for cache metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_cache_metrics_available(self):
+        """Test full cache metrics collection when available."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "cycles": 10,
+            "instructions": 11,
+            "l1d_references": 12,
+            "l1d_misses": 13,
+            "llc_references": 14,
+            "llc_misses": 15,
+        }
+
+        def mock_read(fd):
+            values = {
+                10: 1000000,    # cycles
+                11: 800000,     # instructions
+                12: 500000,     # l1d_references
+                13: 5000,       # l1d_misses (1% miss rate)
+                14: 100000,     # llc_references
+                15: 10000,      # llc_misses (10% miss rate)
+            }
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            # CPU counters
+            assert data["cycles"] == 1000000
+            assert data["instructions"] == 800000
+            assert data["ipc"] == 0.8
+            # L1D cache
+            assert data["l1d_references"] == 500000
+            assert data["l1d_misses"] == 5000
+            assert data["l1d_miss_rate"] == pytest.approx(0.01)
+            # LLC
+            assert data["llc_references"] == 100000
+            assert data["llc_misses"] == 10000
+            assert data["llc_miss_rate"] == pytest.approx(0.1)
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_collect_cache_metrics_partial(self):
+        """Test cache metrics when only some counters available."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        # Only L1D available, not LLC
+        collector._fds = {
+            "l1d_references": 12,
+            "l1d_misses": 13,
+        }
+
+        def mock_read(fd):
+            values = {
+                12: 100000,     # l1d_references
+                13: 2000,       # l1d_misses
+            }
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            # L1D available
+            assert data["l1d_references"] == 100000
+            assert data["l1d_misses"] == 2000
+            assert data["l1d_miss_rate"] == pytest.approx(0.02)
+            # LLC not available
+            assert data["llc_references"] is None
+            assert data["llc_misses"] is None
+            assert data["llc_miss_rate"] is None
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_rate_zero_references(self):
+        """Test cache miss rate when references is zero (avoid division by zero)."""
+        collector = PerfEventsCollector()
+        collector._available = True
+        collector._initialized = True
+        collector._fds = {
+            "l1d_references": 12,
+            "l1d_misses": 13,
+            "llc_references": 14,
+            "llc_misses": 15,
+        }
+
+        def mock_read(fd):
+            values = {
+                12: 0,      # l1d_references (zero!)
+                13: 0,      # l1d_misses
+                14: 0,      # llc_references (zero!)
+                15: 0,      # llc_misses
+            }
+            return values.get(fd)
+
+        try:
+            with patch.object(collector, "_read_counter", side_effect=mock_read):
+                data = await collector.collect()
+
+            assert data["available"] is True
+            # Miss rates should be None when references is zero
+            assert data["l1d_miss_rate"] is None
+            assert data["llc_miss_rate"] is None
+        finally:
+            collector._fds = {}
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_rate_calculation(self):
+        """Test cache miss rate calculation accuracy."""
+        # Test various miss rates
+        test_cases = [
+            (1000000, 50000, 0.05),   # 5% miss rate
+            (1000000, 100000, 0.1),   # 10% miss rate
+            (1000000, 1000, 0.001),   # 0.1% miss rate
+            (100, 100, 1.0),           # 100% miss rate
+        ]
+
+        for refs, misses, expected_rate in test_cases:
+            collector = PerfEventsCollector()
+            collector._available = True
+            collector._initialized = True
+            collector._fds = {
+                "l1d_references": 12,
+                "l1d_misses": 13,
+            }
+
+            def mock_read(fd, r=refs, m=misses):
+                values = {12: r, 13: m}
+                return values.get(fd)
+
+            try:
+                with patch.object(collector, "_read_counter", side_effect=mock_read):
+                    data = await collector.collect()
+
+                assert data["l1d_miss_rate"] == pytest.approx(expected_rate), \
+                    f"Expected {expected_rate} for {misses}/{refs}"
+            finally:
+                collector._fds = {}
+
+
+class TestCacheMetricsIntegration:
+    """Integration tests for cache metrics."""
+
+    @pytest.mark.asyncio
+    async def test_cache_metrics_in_aggregator(self):
+        """Test that cache metrics appear in aggregator output."""
+        perf_collector = PerfEventsCollector()
+        aggregator = MetricsAggregator(collectors=[perf_collector])
+
+        snapshot = await aggregator.collect_all()
+
+        assert "perf_events" in snapshot
+        perf_data = snapshot["perf_events"]
+        assert "available" in perf_data
+        # Cache fields should exist (may be None if unavailable)
+        if perf_data["available"]:
+            assert "l1d_references" in perf_data
+            assert "l1d_misses" in perf_data
+            assert "l1d_miss_rate" in perf_data
+            assert "llc_references" in perf_data
+            assert "llc_misses" in perf_data
+            assert "llc_miss_rate" in perf_data

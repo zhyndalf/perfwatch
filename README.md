@@ -14,7 +14,7 @@ Real-time system performance monitoring web application.
 
 ## Development Progress
 
-> **59% Complete** (13/22 tasks) | Next: T014 - Cache Metrics
+> **64% Complete** (14/22 tasks) | Next: T015 - CPU Perf Metrics
 
 ```mermaid
 flowchart TB
@@ -38,9 +38,9 @@ flowchart TB
         T006 --> T007 --> T008 --> T009 --> T010 --> T011 --> T012
     end
 
-    subgraph P3["Phase 3: Advanced (20%)"]
+    subgraph P3["Phase 3: Advanced (40%)"]
         T013["✅ T013<br/>Perf Events"]
-        T014["⬜ T014<br/>Cache"]
+        T014["✅ T014<br/>Cache"]
         T015["⬜ T015<br/>CPU Perf"]
         T016["⬜ T016<br/>Mem BW"]
         T017["⬜ T017<br/>Adv Dashboard"]
@@ -63,15 +63,15 @@ flowchart TB
     classDef progress fill:#f39c12,stroke:#e67e22,color:#fff
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
-    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012,T013 done
-    class T014,T015,T016,T017,T018,T019,T020,T021,T022 todo
+    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012,T013,T014 done
+    class T015,T016,T017,T018,T019,T020,T021,T022 todo
 ```
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
 | Phase 1: Foundation | ✅ 100% | 5/5 |
 | Phase 2: Core Metrics | ✅ 100% | 7/7 |
-| Phase 3: Advanced | 20% | 1/5 |
+| Phase 3: Advanced | 40% | 2/5 |
 | Phase 4: Polish | 0% | 0/5 |
 
 > 📋 Detailed progress: [docs/sdd/PROGRESS.md](./docs/sdd/PROGRESS.md)
@@ -162,7 +162,7 @@ perfwatch/
 │   │   ├── schemas/   # Pydantic schemas
 │   │   └── services/  # Business logic
 │   ├── alembic/       # Database migrations
-│   └── tests/         # Backend tests (157 tests)
+│   └── tests/         # Backend tests (166 tests)
 ├── frontend/          # Vue.js frontend
 │   └── src/
 │       ├── api/       # Axios client
@@ -180,7 +180,7 @@ perfwatch/
 ### Running Tests
 
 ```bash
-# Run backend tests (157 tests)
+# Run backend tests (166 tests)
 docker compose run --rm backend pytest tests/ -v
 
 # Run with coverage
@@ -213,7 +213,7 @@ PerfWatch includes 5 system metrics collectors:
 | **Memory** | Total, available, used, swap, buffers, cached |
 | **Network** | Bytes sent/recv per second, packets, errors, per-interface stats |
 | **Disk** | Partition usage, I/O read/write rates, counts |
-| **Perf Events** | CPU cycles, instructions, IPC (requires perf_events support) |
+| **Perf Events** | CPU cycles, instructions, IPC, L1/LLC cache miss rates (requires perf_events support) |
 
 ## API Endpoints
 

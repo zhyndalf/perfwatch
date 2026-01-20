@@ -28,13 +28,71 @@ _SYSCALL_PERF_EVENT_OPEN = {
 
 # perf_event_open constants from linux/perf_event.h
 PERF_TYPE_HARDWARE = 0
+PERF_TYPE_HW_CACHE = 3
 
 # Hardware event types
 PERF_COUNT_HW_CPU_CYCLES = 0
 PERF_COUNT_HW_INSTRUCTIONS = 1
 
+# Hardware cache event IDs (perf_hw_cache_id)
+PERF_COUNT_HW_CACHE_L1D = 0   # L1 Data cache
+PERF_COUNT_HW_CACHE_L1I = 1   # L1 Instruction cache
+PERF_COUNT_HW_CACHE_LL = 2    # Last Level Cache (L3 or L2 depending on CPU)
+PERF_COUNT_HW_CACHE_DTLB = 3  # Data TLB
+PERF_COUNT_HW_CACHE_ITLB = 4  # Instruction TLB
+PERF_COUNT_HW_CACHE_BPU = 5   # Branch Prediction Unit
+
+# Hardware cache operation IDs (perf_hw_cache_op_id)
+PERF_COUNT_HW_CACHE_OP_READ = 0
+PERF_COUNT_HW_CACHE_OP_WRITE = 1
+PERF_COUNT_HW_CACHE_OP_PREFETCH = 2
+
+# Hardware cache operation result IDs (perf_hw_cache_op_result_id)
+PERF_COUNT_HW_CACHE_RESULT_ACCESS = 0
+PERF_COUNT_HW_CACHE_RESULT_MISS = 1
+
 # perf_event_open flags
 PERF_FLAG_FD_CLOEXEC = 8
+
+
+def encode_cache_config(cache_id: int, op_id: int, result_id: int) -> int:
+    """Encode a hardware cache event configuration.
+
+    Cache events use a 64-bit config encoded as:
+    config = cache_id | (op_id << 8) | (result_id << 16)
+
+    Args:
+        cache_id: Cache level (L1D, L1I, LL, etc.)
+        op_id: Operation type (READ, WRITE, PREFETCH)
+        result_id: Result type (ACCESS, MISS)
+
+    Returns:
+        Encoded config value for perf_event_open
+    """
+    return cache_id | (op_id << 8) | (result_id << 16)
+
+
+# Pre-computed cache event configs
+CACHE_L1D_READ_ACCESS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_L1D,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_ACCESS
+)
+CACHE_L1D_READ_MISS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_L1D,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_MISS
+)
+CACHE_LL_READ_ACCESS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_LL,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_ACCESS
+)
+CACHE_LL_READ_MISS = encode_cache_config(
+    PERF_COUNT_HW_CACHE_LL,
+    PERF_COUNT_HW_CACHE_OP_READ,
+    PERF_COUNT_HW_CACHE_RESULT_MISS
+)
 
 
 class PerfEventAttr(ctypes.Structure):
@@ -91,6 +149,9 @@ class PerfEventsCollector(BaseCollector):
     - CPU cycles count
     - Instructions count
     - IPC (Instructions Per Cycle)
+    - L1 data cache references and misses
+    - LLC (Last Level Cache) references and misses
+    - Cache miss rates
 
     This collector uses the Linux perf_events interface via ctypes
     to read hardware performance counters without external dependencies.
@@ -246,13 +307,30 @@ class PerfEventsCollector(BaseCollector):
         Returns:
             True if at least one event was successfully opened.
         """
-        events = {
+        # Hardware events (cycles, instructions)
+        hw_events = {
             "cycles": PERF_COUNT_HW_CPU_CYCLES,
             "instructions": PERF_COUNT_HW_INSTRUCTIONS,
         }
 
-        for name, config in events.items():
+        for name, config in hw_events.items():
             fd = self._perf_event_open(PERF_TYPE_HARDWARE, config)
+            if fd >= 0:
+                self._fds[name] = fd
+                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
+            else:
+                logger.debug(f"perf_events: Failed to open {name} counter")
+
+        # Cache events (L1D and LLC)
+        cache_events = {
+            "l1d_references": CACHE_L1D_READ_ACCESS,
+            "l1d_misses": CACHE_L1D_READ_MISS,
+            "llc_references": CACHE_LL_READ_ACCESS,
+            "llc_misses": CACHE_LL_READ_MISS,
+        }
+
+        for name, config in cache_events.items():
+            fd = self._perf_event_open(PERF_TYPE_HW_CACHE, config)
             if fd >= 0:
                 self._fds[name] = fd
                 logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
@@ -299,12 +377,18 @@ class PerfEventsCollector(BaseCollector):
             - cycles: int - CPU cycles count (if available)
             - instructions: int - Instructions count (if available)
             - ipc: float - Instructions Per Cycle (if available)
+            - l1d_references: int - L1 data cache accesses (if available)
+            - l1d_misses: int - L1 data cache misses (if available)
+            - l1d_miss_rate: float - L1 miss rate (if available)
+            - llc_references: int - LLC accesses (if available)
+            - llc_misses: int - LLC misses (if available)
+            - llc_miss_rate: float - LLC miss rate (if available)
         """
         # Check availability (will initialize if needed)
         if not self.is_available():
             return {"available": False}
 
-        # Read counters
+        # Read hardware counters
         cycles = None
         instructions = None
 
@@ -319,11 +403,47 @@ class PerfEventsCollector(BaseCollector):
         if cycles is not None and instructions is not None and cycles > 0:
             ipc = instructions / cycles
 
+        # Read cache counters
+        l1d_references = None
+        l1d_misses = None
+        llc_references = None
+        llc_misses = None
+
+        if "l1d_references" in self._fds:
+            l1d_references = self._read_counter(self._fds["l1d_references"])
+
+        if "l1d_misses" in self._fds:
+            l1d_misses = self._read_counter(self._fds["l1d_misses"])
+
+        if "llc_references" in self._fds:
+            llc_references = self._read_counter(self._fds["llc_references"])
+
+        if "llc_misses" in self._fds:
+            llc_misses = self._read_counter(self._fds["llc_misses"])
+
+        # Calculate cache miss rates
+        l1d_miss_rate = None
+        if l1d_references is not None and l1d_misses is not None and l1d_references > 0:
+            l1d_miss_rate = l1d_misses / l1d_references
+
+        llc_miss_rate = None
+        if llc_references is not None and llc_misses is not None and llc_references > 0:
+            llc_miss_rate = llc_misses / llc_references
+
         return {
             "available": True,
+            # CPU counters
             "cycles": cycles,
             "instructions": instructions,
             "ipc": ipc,
+            # L1 data cache
+            "l1d_references": l1d_references,
+            "l1d_misses": l1d_misses,
+            "l1d_miss_rate": l1d_miss_rate,
+            # Last Level Cache
+            "llc_references": llc_references,
+            "llc_misses": llc_misses,
+            "llc_miss_rate": llc_miss_rate,
         }
 
     def close(self) -> None:

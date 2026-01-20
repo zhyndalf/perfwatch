@@ -75,9 +75,18 @@ class PerfEventsMetrics(BaseModel):
     """Hardware performance counter metrics from Linux perf_events."""
 
     available: bool = Field(False, description="Whether perf_events is available")
+    # CPU counters
     cycles: Optional[int] = Field(None, description="CPU cycles count")
     instructions: Optional[int] = Field(None, description="Instructions count")
     ipc: Optional[float] = Field(None, description="Instructions Per Cycle")
+    # L1 data cache
+    l1d_references: Optional[int] = Field(None, description="L1 data cache accesses")
+    l1d_misses: Optional[int] = Field(None, description="L1 data cache misses")
+    l1d_miss_rate: Optional[float] = Field(None, description="L1 cache miss rate (0.0-1.0)")
+    # Last Level Cache (L3 or L2 depending on CPU)
+    llc_references: Optional[int] = Field(None, description="LLC accesses")
+    llc_misses: Optional[int] = Field(None, description="LLC misses")
+    llc_miss_rate: Optional[float] = Field(None, description="LLC miss rate (0.0-1.0)")
 
 
 # === Disk Metrics ===
