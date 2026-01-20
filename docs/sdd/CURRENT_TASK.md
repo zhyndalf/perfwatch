@@ -20,15 +20,16 @@ Implement data retention policies, downsampling, and cleanup for historical metr
 - T017 Advanced Dashboard: ECharts visualization for all metrics, graceful degradation for perf_events
 - Fixed perf_events collector to correctly report unavailable when cycles/instructions not accessible
 - T019 Comparison View: compare endpoint + overlay charts + summary stats
+- T020 Retention (in progress): API endpoints + cleanup service + Settings UI controls
 - 203 backend tests passing
 
 ---
 
 ## What's Next
 
-1. Implement retention policy config (days, downsampling, interval)
-2. Add cleanup job/service for expired metrics snapshots
-3. Update settings UI to manage retention settings
+1. Wire retention settings into shared store/state
+2. Add scheduled cleanup job or manual trigger in backend
+3. Update docs and finalize T020
 
 ---
 

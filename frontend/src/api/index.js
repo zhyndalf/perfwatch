@@ -106,3 +106,18 @@ export const historyApi = {
     })
   },
 }
+
+// Retention API functions
+export const retentionApi = {
+  getPolicy() {
+    return api.get('/retention')
+  },
+
+  updatePolicy(payload) {
+    return api.put('/retention', payload)
+  },
+
+  runCleanup() {
+    return api.post('/retention/cleanup')
+  },
+}

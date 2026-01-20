@@ -9,6 +9,7 @@ from app.database import close_db
 from app.api.auth import router as auth_router
 from app.api.websocket import router as websocket_router, start_background_collection, stop_background_collection
 from app.api.history import router as history_router
+from app.api.retention import router as retention_router
 
 
 @asynccontextmanager
@@ -53,6 +54,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(websocket_router)
 app.include_router(history_router)
+app.include_router(retention_router)
 
 
 @app.get("/health")

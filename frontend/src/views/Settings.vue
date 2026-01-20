@@ -77,23 +77,119 @@
         </form>
       </div>
 
-      <!-- Application Settings Placeholder -->
+      <!-- Data Retention -->
       <div class="bg-dark-surface/50 border border-dark-border rounded-xl p-6">
-        <h2 class="text-accent-cyan font-semibold mb-4">Application Settings</h2>
-        <p class="text-gray-400 text-sm">
-          Configuration options for data retention, collection intervals, and more will be available in T010.
-        </p>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-accent-cyan font-semibold">Data Retention</h2>
+          <span v-if="retentionLastRun" class="text-xs text-gray-400">
+            Last cleanup: {{ formatDate(retentionLastRun) }}
+          </span>
+        </div>
+
+        <div v-if="retentionLoading" class="text-gray-400 text-sm">Loading retention policy...</div>
+
+        <div v-else class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Retention Days</label>
+              <input
+                v-model.number="retentionDays"
+                type="number"
+                min="1"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors"
+              />
+            </div>
+
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Downsample After (days)</label>
+              <input
+                v-model.number="downsampleAfterDays"
+                type="number"
+                min="0"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors"
+              />
+            </div>
+
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Downsample Interval</label>
+              <select
+                v-model="downsampleInterval"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white focus:outline-none focus:border-accent-cyan transition-colors"
+              >
+                <option value="5s">5s</option>
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+                <option value="1h">1h</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input
+                id="archiveEnabled"
+                v-model="archiveEnabled"
+                type="checkbox"
+                class="h-4 w-4 rounded border-dark-border text-accent-cyan focus:ring-accent-cyan"
+              />
+              <label for="archiveEnabled" class="text-gray-300 text-sm">Enable cleanup</label>
+            </div>
+          </div>
+
+          <div v-if="retentionError" class="p-3 bg-accent-error/20 border border-accent-error/50 rounded-lg text-accent-error text-sm">
+            {{ retentionError }}
+          </div>
+
+          <div v-if="retentionSuccess" class="p-3 bg-accent-green/20 border border-accent-green/50 rounded-lg text-accent-green text-sm">
+            {{ retentionSuccess }}
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              class="px-6 py-2 bg-accent-cyan text-dark-bg font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              :disabled="retentionSaving"
+              @click="saveRetention"
+            >
+              {{ retentionSaving ? 'Saving...' : 'Save Policy' }}
+            </button>
+            <button
+              type="button"
+              class="px-6 py-2 bg-dark-bg border border-dark-border text-gray-200 rounded-lg hover:border-accent-cyan transition-colors disabled:opacity-50"
+              :disabled="retentionSaving"
+              @click="runCleanup"
+            >
+              Run Cleanup
+            </button>
+            <span v-if="cleanupSummary" class="text-sm text-gray-400 self-center">
+              Deleted {{ cleanupSummary.deleted }} snapshots
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api'
+import { useRetentionStore } from '@/stores/retention'
 
 const authStore = useAuthStore()
+const retentionStore = useRetentionStore()
+const {
+  loading: retentionLoading,
+  saving: retentionSaving,
+  error: retentionError,
+  success: retentionSuccess,
+  retentionDays,
+  downsampleAfterDays,
+  downsampleInterval,
+  archiveEnabled,
+  lastArchiveRun: retentionLastRun,
+  cleanupSummary,
+} = storeToRefs(retentionStore)
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -105,6 +201,10 @@ const success = ref('')
 const formatLastLogin = computed(() => {
   if (!authStore.user?.last_login) return 'Never'
   return new Date(authStore.user.last_login).toLocaleString()
+})
+
+onMounted(async () => {
+  await retentionStore.fetchPolicy()
 })
 
 async function handleChangePassword() {
@@ -134,5 +234,18 @@ async function handleChangePassword() {
   } finally {
     loading.value = false
   }
+}
+
+async function saveRetention() {
+  await retentionStore.updatePolicy()
+}
+
+async function runCleanup() {
+  await retentionStore.runCleanup()
+}
+
+function formatDate(value) {
+  if (!value) return 'Never'
+  return new Date(value).toLocaleString()
 }
 </script>

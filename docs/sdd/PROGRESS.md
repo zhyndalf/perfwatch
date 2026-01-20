@@ -65,7 +65,7 @@ Total                  [█████████░] 86%  (19/22 tasks)
 |--------|---------|------|-----------|
 | ✅ | T018 | History Storage | 2-3 hrs |
 | ✅ | T019 | Comparison View | 2-3 hrs |
-| ⬜ | T020 | Data Retention | 2-3 hrs |
+| ⏳ | T020 | Data Retention | 2-3 hrs |
 | ⬜ | T021 | Settings Page | 2-3 hrs |
 | ⬜ | T022 | Polish & Testing | 3-4 hrs |
 
@@ -88,7 +88,7 @@ Total                  [█████████░] 86%  (19/22 tasks)
 |--------|-------|
 | Total Tasks | 22 |
 | Completed | 19 |
-| In Progress | 0 |
+| In Progress | 1 |
 | Blocked | 0 |
 | Remaining | 3 |
 | Est. Total Hours | ~52 |
