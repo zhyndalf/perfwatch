@@ -9,17 +9,40 @@ This diagram shows the major containers (applications/data stores) that make up 
 ## Diagram
 
 ```mermaid
-graph TB
-    User[👤 System Administrator]
+flowchart TB
+    User["👤 System Administrator"]
 
-    subgraph PerfWatch["PerfWatch System"]
-        Frontend[Vue.js Frontend<br/>SPA Container<br/>Port 3000<br/><br/>TailwindCSS, Pinia,<br/>ECharts, WebSocket client]
-        Backend[FastAPI Backend<br/>API + WebSocket Server<br/>Port 8000<br/><br/>Python 3.11, uvicorn,<br/>JWT auth, collectors]
-        Database[PostgreSQL Database<br/>Metrics Storage<br/>Port 5432<br/><br/>JSONB columns,<br/>time-series data]
-        Collectors[Metrics Collectors<br/>Background Tasks<br/><br/>psutil, perf_events,<br/>6 collector modules]
+    subgraph PerfWatch["⭐ PerfWatch System"]
+        Frontend["🎨 Vue.js Frontend
+        SPA Container
+        Port 3000
+
+        TailwindCSS, Pinia,
+        ECharts, WebSocket client"]
+
+        Backend["⚙️ FastAPI Backend
+        API + WebSocket Server
+        Port 8000
+
+        Python 3.11, uvicorn,
+        JWT auth, collectors"]
+
+        Database["💾 PostgreSQL Database
+        Metrics Storage
+        Port 5432
+
+        JSONB columns,
+        time-series data"]
+
+        Collectors["📊 Metrics Collectors
+        Background Tasks
+
+        psutil, perf_events,
+        6 collector modules"]
     end
 
-    LinuxKernel[🐧 Linux Kernel<br/>/proc, /sys, perf_events]
+    LinuxKernel["🐧 Linux Kernel
+    /proc, /sys, perf_events"]
 
     User -->|HTTPS/HTTP<br/>Views UI| Frontend
     Frontend -->|HTTP REST API<br/>JSON| Backend
@@ -29,19 +52,12 @@ graph TB
     Collectors -->|Reads metrics| LinuxKernel
     Backend -->|Stores snapshots<br/>JSONB| Database
 
-    classDef userStyle fill:#4CAF50,stroke:#2E7D32,color:#fff
-    classDef frontendStyle fill:#42A5F5,stroke:#1565C0,color:#fff
-    classDef backendStyle fill:#66BB6A,stroke:#2E7D32,color:#fff
-    classDef dataStyle fill:#FFA726,stroke:#E65100,color:#fff
-    classDef collectorStyle fill:#AB47BC,stroke:#6A1B9A,color:#fff
-    classDef externalStyle fill:#78909C,stroke:#37474F,color:#fff
-
-    class User userStyle
-    class Frontend frontendStyle
-    class Backend backendStyle
-    class Database dataStyle
-    class Collectors collectorStyle
-    class LinuxKernel externalStyle
+    style User fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style Frontend fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style Backend fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style Database fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style Collectors fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style LinuxKernel fill:#78909C,stroke:#37474F,stroke-width:2px,color:#fff
 ```
 
 ---

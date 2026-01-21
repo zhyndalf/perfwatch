@@ -9,25 +9,31 @@ This diagram shows PerfWatch as a black box, its users, and external systems it 
 ## Diagram
 
 ```mermaid
-graph TB
-    User[👤 System Administrator<br/>Local user monitoring<br/>Linux system performance]
+flowchart TB
+    User["👤 System Administrator
+    Local user monitoring
+    Linux system performance"]
 
-    PerfWatch[PerfWatch<br/>Real-time System<br/>Performance Monitor]
+    PerfWatch["⭐ PerfWatch
+    Real-time System
+    Performance Monitor"]
 
-    Browser[🌐 Web Browser<br/>Chrome/Firefox/Safari]
-    LinuxKernel[🐧 Linux Kernel<br/>Metrics source:<br/>CPU, memory, disk, network,<br/>perf_events, vmstat]
+    Browser["🌐 Web Browser
+    Chrome/Firefox/Safari"]
+
+    LinuxKernel["🐧 Linux Kernel
+    Metrics source:
+    CPU, memory, disk, network,
+    perf_events, vmstat"]
 
     User -->|Views metrics via| Browser
     Browser -->|HTTP/WebSocket| PerfWatch
     PerfWatch -->|Collects metrics from| LinuxKernel
 
-    classDef userStyle fill:#4CAF50,stroke:#2E7D32,color:#fff
-    classDef systemStyle fill:#2196F3,stroke:#1565C0,color:#fff
-    classDef externalStyle fill:#FF9800,stroke:#E65100,color:#fff
-
-    class User userStyle
-    class PerfWatch systemStyle
-    class Browser,LinuxKernel externalStyle
+    style User fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style PerfWatch fill:#2196F3,stroke:#1565C0,stroke-width:3px,color:#fff
+    style Browser fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff
+    style LinuxKernel fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff
 ```
 
 ---

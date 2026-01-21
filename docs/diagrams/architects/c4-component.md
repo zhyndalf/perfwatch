@@ -9,152 +9,187 @@ This diagram shows the major components inside the Frontend and Backend containe
 ## Backend Components
 
 ```mermaid
-graph TB
-    subgraph Backend["FastAPI Backend Container"]
-        Main[main.py<br/>Application Entry<br/>CORS, lifespan events]
+flowchart TB
+    Main["🚀 main.py
+    Application Entry"]
 
-        subgraph APIRouters["API Routers"]
-            AuthAPI[auth.py<br/>Login, /me,<br/>password change]
-            WSAPI[websocket.py<br/>WebSocket manager<br/>/ws/metrics]
-            HistoryAPI[history.py<br/>Historical queries<br/>comparison]
-            RetentionAPI[retention.py<br/>Policy management<br/>cleanup triggers]
-            ConfigAPI[config.py<br/>System info<br/>settings]
-        end
+    AuthAPI["🔐 auth.py API"]
+    WSAPI["🔌 websocket.py API"]
+    HistoryAPI["📜 history.py API"]
+    RetentionAPI["🗑️ retention.py API"]
+    ConfigAPI["⚙️ config.py API"]
 
-        subgraph Services["Services Layer"]
-            Aggregator[MetricsAggregator<br/>Coordinates collectors<br/>combines results]
-            RetentionSvc[RetentionService<br/>Cleanup logic<br/>policy application]
-            BatchWriter[BatchMetricsWriter<br/>Batch DB writes<br/>queue management]
-        end
+    Aggregator["🎯 MetricsAggregator
+    Service"]
+    RetentionSvc["🧹 RetentionService"]
+    BatchWriter["📦 BatchMetricsWriter"]
 
-        subgraph Collectors["Collectors"]
-            BaseCol[BaseCollector<br/>Abstract base<br/>safe_collect()]
-            CPUCol[CPUCollector]
-            MemCol[MemoryCollector]
-            NetCol[NetworkCollector]
-            DiskCol[DiskCollector]
-            PerfCol[PerfEventsCollector]
-            BandCol[MemoryBandwidthCollector]
-        end
+    BaseCol["📊 BaseCollector
+    Abstract"]
+    CPUCol["💻 CPUCollector"]
+    MemCol["🧠 MemoryCollector"]
+    NetCol["🌐 NetworkCollector"]
+    DiskCol["💾 DiskCollector"]
+    PerfCol["⚡ PerfEventsCollector"]
+    BandCol["📈 MemoryBandwidthCollector"]
 
-        subgraph Models["SQLAlchemy Models"]
-            UserModel[User<br/>Authentication]
-            MetricsModel[MetricsSnapshot<br/>JSONB storage]
-            ConfigModel[Config<br/>Key-value]
-            PolicyModel[ArchivePolicy<br/>Retention rules]
-        end
+    UserModel["👤 User Model"]
+    MetricsModel["📊 MetricsSnapshot Model"]
+    ConfigModel["⚙️ Config Model"]
+    PolicyModel["📋 ArchivePolicy Model"]
 
-        Database[(PostgreSQL<br/>Database)]
-        LinuxKernel[🐧 Linux Kernel]
-    end
+    Database[("🗄️ PostgreSQL")]
+    LinuxKernel["🐧 Linux Kernel"]
 
-    Main --> APIRouters
+    Main --> AuthAPI
+    Main --> WSAPI
+    Main --> HistoryAPI
+    Main --> RetentionAPI
+    Main --> ConfigAPI
+
     WSAPI --> Aggregator
     HistoryAPI --> Database
     RetentionAPI --> RetentionSvc
-    Aggregator --> Collectors
+
+    Aggregator --> BaseCol
     BaseCol --> CPUCol
     BaseCol --> MemCol
     BaseCol --> NetCol
     BaseCol --> DiskCol
     BaseCol --> PerfCol
     BaseCol --> BandCol
+
     CPUCol --> LinuxKernel
     MemCol --> LinuxKernel
     NetCol --> LinuxKernel
     DiskCol --> LinuxKernel
     PerfCol --> LinuxKernel
     BandCol --> LinuxKernel
+
     BatchWriter --> Database
     Aggregator --> BatchWriter
     RetentionSvc --> Database
+
     AuthAPI --> UserModel
     WSAPI --> MetricsModel
     HistoryAPI --> MetricsModel
     RetentionAPI --> PolicyModel
     ConfigAPI --> ConfigModel
 
-    classDef entryStyle fill:#FF6F00,stroke:#E65100,color:#fff
-    classDef apiStyle fill:#42A5F5,stroke:#1565C0,color:#fff
-    classDef serviceStyle fill:#66BB6A,stroke:#2E7D32,color:#fff
-    classDef collectorStyle fill:#AB47BC,stroke:#6A1B9A,color:#fff
-    classDef modelStyle fill:#FFA726,stroke:#E65100,color:#fff
-    classDef dbStyle fill:#78909C,stroke:#37474F,color:#fff
+    UserModel --> Database
+    MetricsModel --> Database
+    ConfigModel --> Database
+    PolicyModel --> Database
 
-    class Main entryStyle
-    class AuthAPI,WSAPI,HistoryAPI,RetentionAPI,ConfigAPI apiStyle
-    class Aggregator,RetentionSvc,BatchWriter serviceStyle
-    class BaseCol,CPUCol,MemCol,NetCol,DiskCol,PerfCol,BandCol collectorStyle
-    class UserModel,MetricsModel,ConfigModel,PolicyModel modelStyle
-    class Database,LinuxKernel dbStyle
+    style Main fill:#FF6F00,stroke:#E65100,stroke-width:2px,color:#fff
+    style AuthAPI fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style WSAPI fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style HistoryAPI fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style RetentionAPI fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style ConfigAPI fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style Aggregator fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style RetentionSvc fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style BatchWriter fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style BaseCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style CPUCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style MemCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style NetCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style DiskCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style PerfCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style BandCol fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style UserModel fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style MetricsModel fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style ConfigModel fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style PolicyModel fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style Database fill:#78909C,stroke:#37474F,stroke-width:2px,color:#fff
+    style LinuxKernel fill:#78909C,stroke:#37474F,stroke-width:2px,color:#fff
 ```
+
+**Component Layers:**
+- **Entry Point**: main.py (FastAPI app initialization)
+- **API Layer**: 5 routers (auth, websocket, history, retention, config)
+- **Service Layer**: Aggregator, RetentionService, BatchWriter
+- **Collector Layer**: 6 metrics collectors + abstract base
+- **Model Layer**: 4 SQLAlchemy models
+- **Data Layer**: PostgreSQL + Linux Kernel
 
 ---
 
 ## Frontend Components
 
 ```mermaid
-graph TB
-    subgraph Frontend["Vue.js Frontend Container"]
-        Router[Vue Router<br/>Navigation<br/>Auth guards]
+flowchart TB
+    Router["🧭 Vue Router"]
 
-        subgraph Views["Views (Pages)"]
-            LoginView[Login.vue<br/>Authentication UI]
-            DashView[Dashboard.vue<br/>Real-time metrics<br/>ECharts]
-            HistView[History.vue<br/>Time-range queries<br/>Comparison]
-            SettingsView[Settings.vue<br/>System info<br/>Retention config]
-        end
+    LoginView["🔐 Login.vue"]
+    DashView["📊 Dashboard.vue"]
+    HistView["📜 History.vue"]
+    SettingsView["⚙️ Settings.vue"]
 
-        subgraph Stores["Pinia Stores"]
-            AuthStore[authStore<br/>JWT management<br/>User state]
-            MetricsStore[metricsStore<br/>WebSocket client<br/>Real-time data]
-            HistoryStore[historyStore<br/>Query state<br/>Comparison data]
-            RetentionStore[retentionStore<br/>Policy state]
-            ConfigStore[configStore<br/>System info]
-        end
+    AuthStore["🔐 authStore"]
+    MetricsStore["📊 metricsStore"]
+    HistoryStore["📜 historyStore"]
+    RetentionStore["🗑️ retentionStore"]
+    ConfigStore["⚙️ configStore"]
 
-        subgraph Components["Shared Components"]
-            Layout[Layout.vue<br/>App wrapper]
-            Header[Header.vue<br/>Navigation bar]
-        end
+    Layout["📐 Layout.vue"]
+    Header["📌 Header.vue"]
 
-        APIClient[API Client<br/>Axios instance<br/>JWT interceptor]
-        WSClient[WebSocket Client<br/>Connection manager<br/>Auto-reconnect]
-    end
+    APIClient["🌐 API Client
+    Axios"]
+    WSClient["🔌 WebSocket Client"]
 
-    Backend[FastAPI Backend]
+    Backend["⚙️ FastAPI Backend"]
 
-    Router --> Views
-    Views --> Stores
+    Router --> LoginView
+    Router --> DashView
+    Router --> HistView
+    Router --> SettingsView
+
     LoginView --> AuthStore
     DashView --> MetricsStore
     HistView --> HistoryStore
     SettingsView --> RetentionStore
     SettingsView --> ConfigStore
+
+    LoginView --> Layout
+    DashView --> Layout
+    HistView --> Layout
+    SettingsView --> Layout
     Layout --> Header
-    Views --> Layout
+
     AuthStore --> APIClient
     HistoryStore --> APIClient
     RetentionStore --> APIClient
     ConfigStore --> APIClient
     MetricsStore --> WSClient
+
     APIClient --> Backend
     WSClient --> Backend
 
-    classDef routerStyle fill:#FF6F00,stroke:#E65100,color:#fff
-    classDef viewStyle fill:#42A5F5,stroke:#1565C0,color:#fff
-    classDef storeStyle fill:#66BB6A,stroke:#2E7D32,color:#fff
-    classDef componentStyle fill:#AB47BC,stroke:#6A1B9A,color:#fff
-    classDef clientStyle fill:#FFA726,stroke:#E65100,color:#fff
-    classDef backendStyle fill:#78909C,stroke:#37474F,color:#fff
-
-    class Router routerStyle
-    class LoginView,DashView,HistView,SettingsView viewStyle
-    class AuthStore,MetricsStore,HistoryStore,RetentionStore,ConfigStore storeStyle
-    class Layout,Header componentStyle
-    class APIClient,WSClient clientStyle
-    class Backend backendStyle
+    style Router fill:#FF6F00,stroke:#E65100,stroke-width:2px,color:#fff
+    style LoginView fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style DashView fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style HistView fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style SettingsView fill:#42A5F5,stroke:#1565C0,stroke-width:2px,color:#fff
+    style AuthStore fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style MetricsStore fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style HistoryStore fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style RetentionStore fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style ConfigStore fill:#66BB6A,stroke:#2E7D32,stroke-width:2px,color:#fff
+    style Layout fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style Header fill:#AB47BC,stroke:#6A1B9A,stroke-width:2px,color:#fff
+    style APIClient fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style WSClient fill:#FFA726,stroke:#E65100,stroke-width:2px,color:#fff
+    style Backend fill:#78909C,stroke:#37474F,stroke-width:2px,color:#fff
 ```
+
+**Component Layers:**
+- **Router**: Vue Router with auth guards
+- **Views**: 4 page components (Login, Dashboard, History, Settings)
+- **Stores**: 5 Pinia stores for state management
+- **Components**: Shared Layout and Header
+- **Clients**: API client (Axios) and WebSocket client
 
 ---
 

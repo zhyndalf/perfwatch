@@ -9,63 +9,63 @@ This diagram shows the complete technology stack organized by architectural laye
 ## Stack Diagram
 
 ```mermaid
-graph TB
+flowchart TB
     subgraph Presentation["🎨 Presentation Layer"]
-        Browser[Web Browser<br/>Chrome, Firefox, Safari]
-        Vue[Vue.js 3<br/>Composition API<br/>script setup]
-        Pinia[Pinia<br/>State Management]
-        Router[Vue Router 4<br/>Navigation]
-        Tailwind[TailwindCSS<br/>Styling]
-        ECharts[Apache ECharts<br/>Data Visualization]
-        Axios[Axios<br/>HTTP Client]
+        Browser["Web Browser<br/>Chrome, Firefox, Safari"]
+        Vue["Vue.js 3<br/>Composition API<br/>script setup"]
+        Pinia["Pinia<br/>State Management"]
+        Router["Vue Router 4<br/>Navigation"]
+        Tailwind["TailwindCSS<br/>Styling"]
+        ECharts["Apache ECharts<br/>Data Visualization"]
+        Axios["Axios<br/>HTTP Client"]
     end
 
     subgraph Application["⚙️ Application Layer"]
-        FastAPI[FastAPI<br/>Web Framework<br/>Python 3.11]
-        Uvicorn[Uvicorn<br/>ASGI Server]
-        WebSocket[WebSocket<br/>Real-time Protocol]
-        JWT[python-jose<br/>JWT Authentication]
-        Pydantic[Pydantic v2<br/>Data Validation]
+        FastAPI["FastAPI<br/>Web Framework<br/>Python 3.11"]
+        Uvicorn["Uvicorn<br/>ASGI Server"]
+        WebSocket["WebSocket<br/>Real-time Protocol"]
+        JWT["python-jose<br/>JWT Authentication"]
+        Pydantic["Pydantic v2<br/>Data Validation"]
     end
 
     subgraph Services["🔧 Services Layer"]
-        Aggregator[MetricsAggregator<br/>Coordination]
-        Collectors[6 Collector Modules<br/>BaseCollector pattern]
-        Retention[RetentionService<br/>Cleanup Logic]
-        BatchWriter[BatchMetricsWriter<br/>Queue Management]
+        Aggregator["MetricsAggregator<br/>Coordination"]
+        Collectors["6 Collector Modules<br/>BaseCollector pattern"]
+        Retention["RetentionService<br/>Cleanup Logic"]
+        BatchWriter["BatchMetricsWriter<br/>Queue Management"]
     end
 
     subgraph DataCollection["📊 Data Collection Layer"]
-        psutil[psutil<br/>System Metrics]
-        perf[perf_events<br/>Hardware Counters]
-        proc[/proc filesystem<br/>Kernel Stats]
+        psutil["psutil<br/>System Metrics"]
+        perf["perf_events<br/>Hardware Counters"]
+        proc["/proc filesystem<br/>Kernel Stats"]
     end
 
     subgraph DataAccess["💾 Data Access Layer"]
-        SQLAlchemy[SQLAlchemy 2.0<br/>Async ORM]
-        asyncpg[asyncpg<br/>PostgreSQL Driver]
-        Alembic[Alembic<br/>Schema Migrations]
+        SQLAlchemy["SQLAlchemy 2.0<br/>Async ORM"]
+        asyncpg["asyncpg<br/>PostgreSQL Driver"]
+        Alembic["Alembic<br/>Schema Migrations"]
     end
 
     subgraph DataStorage["🗄️ Data Storage Layer"]
-        PostgreSQL[PostgreSQL 15<br/>JSONB Support]
-        Volume[Docker Volume<br/>Persistence]
+        PostgreSQL["PostgreSQL 15<br/>JSONB Support"]
+        Volume["Docker Volume<br/>Persistence"]
     end
 
     subgraph Security["🔒 Security Layer"]
-        bcrypt[bcrypt<br/>Password Hashing]
-        CORS[CORS Middleware<br/>Cross-Origin]
+        bcrypt["bcrypt<br/>Password Hashing"]
+        CORS["CORS Middleware<br/>Cross-Origin"]
     end
 
     subgraph Infrastructure["🐳 Infrastructure Layer"]
-        Docker[Docker Compose<br/>Orchestration]
-        Node[Node.js 18<br/>Frontend Build]
-        Python[Python 3.11<br/>Backend Runtime]
-        Vite[Vite<br/>Frontend Bundler]
+        Docker["Docker Compose<br/>Orchestration"]
+        Node["Node.js 18<br/>Frontend Build"]
+        Python["Python 3.11<br/>Backend Runtime"]
+        Vite["Vite<br/>Frontend Bundler"]
     end
 
     subgraph OS["🐧 Operating System Layer"]
-        Linux[Linux Kernel<br/>perf_events required]
+        Linux["Linux Kernel<br/>perf_events required"]
     end
 
     Browser --> Vue
@@ -101,26 +101,6 @@ graph TB
     psutil --> Linux
     perf --> Linux
     proc --> Linux
-
-    classDef presentationStyle fill:#42A5F5,stroke:#1565C0,color:#fff
-    classDef applicationStyle fill:#66BB6A,stroke:#2E7D32,color:#fff
-    classDef serviceStyle fill:#AB47BC,stroke:#6A1B9A,color:#fff
-    classDef collectionStyle fill:#FFA726,stroke:#E65100,color:#fff
-    classDef dataAccessStyle fill:#FFCA28,stroke:#F57C00,color:#000
-    classDef storageStyle fill:#8D6E63,stroke:#4E342E,color:#fff
-    classDef securityStyle fill:#EF5350,stroke:#C62828,color:#fff
-    classDef infraStyle fill:#78909C,stroke:#37474F,color:#fff
-    classDef osStyle fill:#37474F,stroke:#000,color:#fff
-
-    class Browser,Vue,Pinia,Router,Tailwind,ECharts,Axios presentationStyle
-    class FastAPI,Uvicorn,WebSocket,JWT,Pydantic applicationStyle
-    class Aggregator,Collectors,Retention,BatchWriter serviceStyle
-    class psutil,perf,proc collectionStyle
-    class SQLAlchemy,asyncpg,Alembic dataAccessStyle
-    class PostgreSQL,Volume storageStyle
-    class bcrypt,CORS securityStyle
-    class Docker,Node,Python,Vite infraStyle
-    class Linux osStyle
 ```
 
 ---
