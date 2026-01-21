@@ -136,37 +136,49 @@ flowchart TD
 ```mermaid
 flowchart TD
     Start([User on History Page]) --> EnableCompare[Enable Comparison Mode<br/>Toggle Switch]
-    EnableCompare --> SelectP1[Select Period 1<br/>Date Range]
+
+    EnableCompare --> ChooseMode{Choose<br/>Comparison Mode}
+
+    ChooseMode -->|Relative| SelectPeriod[Select Period:<br/>hour, day, week]
+    SelectPeriod --> SelectCompareTo[Select Compare To:<br/>yesterday, last_week]
+    SelectCompareTo --> ValidateRelative{Inputs<br/>Valid?}
+
+    ChooseMode -->|Custom Range| SelectP1[Select Period 1<br/>Date Range]
     SelectP1 --> SelectP2[Select Period 2<br/>Date Range]
+    SelectP2 --> ValidateCustom{Periods<br/>Same Duration?}
 
-    SelectP2 --> Validate{Periods<br/>Valid?}
-    Validate -->|No| ShowError[Show Validation Error]
-    ShowError --> SelectP2
+    ValidateRelative -->|No| ShowRelativeError[Show Validation Error]
+    ValidateCustom -->|No| ShowCustomError[Show Error:<br/>'Periods must be same duration']
+    ShowRelativeError --> SelectPeriod
+    ShowCustomError --> SelectP2
 
-    Validate -->|Yes| ClickCompare[Click 'Compare' Button]
-    ClickCompare --> SendRequest[GET /api/history/compare<br/>4 timestamp params]
+    ValidateRelative -->|Yes| ClickCompare[Click 'Compare' Button]
+    ValidateCustom -->|Yes| ClickCompare
+
+    ClickCompare --> SendRequest[GET /api/history/compare<br/>with mode-specific params]
 
     SendRequest --> BackendReceive[Backend Receives Request]
-    BackendReceive --> QueryP1[Query Period 1<br/>SELECT AVG metrics<br/>WHERE timestamp BETWEEN]
-    BackendReceive --> QueryP2[Query Period 2<br/>SELECT AVG metrics<br/>WHERE timestamp BETWEEN]
+    BackendReceive --> QueryP1[Query Period 1<br/>SELECT * FROM metrics_snapshots<br/>WHERE timestamp BETWEEN...]
+    BackendReceive --> QueryP2[Query Period 2<br/>SELECT * FROM metrics_snapshots<br/>WHERE timestamp BETWEEN...]
 
-    QueryP1 --> Agg1[Aggregate Period 1:<br/>AVG CPU, Memory, etc.]
-    QueryP2 --> Agg2[Aggregate Period 2:<br/>AVG CPU, Memory, etc.]
+    QueryP1 --> Agg1[Process Period 1:<br/>Extract data_points]
+    QueryP2 --> Agg2[Process Period 2:<br/>Extract data_points]
 
-    Agg1 --> CalcDiff[Calculate Differences<br/>Period2 - Period1]
-    Agg2 --> CalcDiff
+    Agg1 --> CalcSummary[Calculate Summary Stats:<br/>current_avg, comparison_avg]
+    Agg2 --> CalcSummary
 
-    CalcDiff --> CalcPercent[Calculate Percentage Change<br/>diff / Period1 * 100]
+    CalcSummary --> CalcPercent[Calculate Change %:<br/>(comparison - current) / current * 100]
 
-    CalcPercent --> BuildResponse[Build Response JSON:<br/>period1, period2, diff, percent]
+    CalcPercent --> BuildResponse[Build Response JSON:<br/>current, comparison, summary]
 
     BuildResponse --> SendResponse[Send 200 OK<br/>with Comparison Data]
 
     SendResponse --> FrontendReceive[Frontend Receives Response]
-    FrontendReceive --> RenderTable[Render Comparison Table]
+    FrontendReceive --> RenderCharts[Render Comparison Charts:<br/>Overlay Time Series]
 
-    RenderTable --> HighlightPos[Highlight Positive Changes<br/>Green]
-    RenderTable --> HighlightNeg[Highlight Negative Changes<br/>Red]
+    RenderCharts --> ShowSummary[Display Summary Stats]
+    ShowSummary --> HighlightPos[Highlight Improvements<br/>Green]
+    ShowSummary --> HighlightNeg[Highlight Degradations<br/>Red]
 
     HighlightPos --> Display[Display to User]
     HighlightNeg --> Display
@@ -174,11 +186,11 @@ flowchart TD
     Display --> UserAnalyze[User Analyzes Differences<br/>Identifies Trends]
 
     UserAnalyze --> NewCompare{New<br/>Comparison?}
-    NewCompare -->|Yes| SelectP1
+    NewCompare -->|Yes| ChooseMode
     NewCompare -->|No| End([Exit Comparison Mode])
 
     style Start fill:#42A5F5,color:#fff
-    style CalcDiff fill:#FFA726,color:#fff
+    style CalcSummary fill:#FFA726,color:#fff
     style HighlightPos fill:#66BB6A,color:#fff
     style HighlightNeg fill:#EF5350,color:#fff
     style Display fill:#AB47BC,color:#fff

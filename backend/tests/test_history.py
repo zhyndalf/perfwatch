@@ -592,6 +592,17 @@ class TestHistoryCompareEndpoint:
             "/api/history/compare",
             params={
                 "metric_type": "cpu",
+                "start_time_1": "2026-01-21T10:00:00Z",
+                "end_time_1": "2026-01-21T11:00:00Z",
+            },
+            headers={"Authorization": f"Bearer {auth_token}"},
+        )
+        assert response.status_code == 400
+
+        response = await client.get(
+            "/api/history/compare",
+            params={
+                "metric_type": "cpu",
                 "period": "hour",
                 "compare_to": "last_month",
             },
@@ -648,3 +659,76 @@ class TestHistoryCompareEndpoint:
         assert data["comparison"]["data_points"]
         assert data["summary"]["current_avg"] is not None
         assert data["summary"]["comparison_avg"] is not None
+
+    @pytest.mark.asyncio
+    async def test_compare_custom_range(
+        self,
+        client: AsyncClient,
+        auth_token: str,
+        db_session: AsyncSession,
+    ):
+        now = datetime.now(timezone.utc)
+        current_start = now - timedelta(hours=3)
+        current_end = now - timedelta(hours=2)
+        comparison_start = now - timedelta(days=1, hours=3)
+        comparison_end = now - timedelta(days=1, hours=2)
+
+        for i in range(4):
+            timestamp = current_start + timedelta(minutes=i * 10)
+            db_session.add(
+                MetricsSnapshot(
+                    timestamp=timestamp,
+                    metric_type="cpu",
+                    metric_data={"usage_percent": 50.0 + i},
+                )
+            )
+            db_session.add(
+                MetricsSnapshot(
+                    timestamp=timestamp - timedelta(days=1),
+                    metric_type="cpu",
+                    metric_data={"usage_percent": 40.0 + i},
+                )
+            )
+
+        await db_session.commit()
+
+        response = await client.get(
+            "/api/history/compare",
+            params={
+                "metric_type": "cpu",
+                "start_time_1": current_start.isoformat(),
+                "end_time_1": current_end.isoformat(),
+                "start_time_2": comparison_start.isoformat(),
+                "end_time_2": comparison_end.isoformat(),
+            },
+            headers={"Authorization": f"Bearer {auth_token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["period"] == "custom"
+        assert data["compare_to"] == "custom"
+        assert data["current"]["data_points"]
+        assert data["comparison"]["data_points"]
+        assert data["summary"]["current_avg"] is not None
+        assert data["summary"]["comparison_avg"] is not None
+
+    @pytest.mark.asyncio
+    async def test_compare_custom_range_mismatched_duration(
+        self,
+        client: AsyncClient,
+        auth_token: str,
+    ):
+        response = await client.get(
+            "/api/history/compare",
+            params={
+                "metric_type": "cpu",
+                "start_time_1": "2026-01-21T10:00:00Z",
+                "end_time_1": "2026-01-21T11:00:00Z",
+                "start_time_2": "2026-01-20T08:00:00Z",
+                "end_time_2": "2026-01-20T09:30:00Z",
+            },
+            headers={"Authorization": f"Bearer {auth_token}"},
+        )
+
+        assert response.status_code == 400

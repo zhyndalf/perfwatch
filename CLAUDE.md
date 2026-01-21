@@ -364,7 +364,7 @@ The application uses SQLAlchemy 2.0 with modern `Mapped` type hints and async se
 The API provides endpoints for authentication, real-time WebSocket streaming, historical queries, and configuration. Key endpoints:
 - **Auth**: `/api/auth/login`, `/api/auth/me`, `/api/auth/password`
 - **WebSocket**: `/api/ws/metrics` (real-time streaming with JWT token in query param)
-- **History**: `/api/history/metrics`, `/api/history/compare` (time-range queries)
+- **History**: `/api/history/metrics`, `/api/history/metrics/types`, `/api/history/compare` (time-range queries and comparisons with relative or custom ranges)
 - **Retention**: `/api/retention/*` (policy management and cleanup)
 - **Config**: `/api/config` (system info and settings)
 

@@ -455,6 +455,57 @@ async def compare_metrics_history(
     return current_snapshots, comparison_snapshots, interval_label, summary
 
 
+async def compare_metrics_custom_range(
+    metric_type: str,
+    current_start: datetime,
+    current_end: datetime,
+    comparison_start: datetime,
+    comparison_end: datetime,
+    limit: int = 1000,
+    interval: Optional[str] = None,
+    session: Optional[AsyncSession] = None,
+) -> Tuple[List[MetricsSnapshot], List[MetricsSnapshot], Optional[str], Dict[str, Optional[float]]]:
+    interval_label, _ = resolve_interval(current_start, current_end, interval)
+    interval_value = interval
+    if interval is not None and interval.lower() == "auto":
+        interval_value = interval_label
+
+    current_snapshots, _ = await query_metrics_history(
+        metric_type=metric_type,
+        start_time=current_start,
+        end_time=current_end,
+        limit=limit,
+        interval=interval_value,
+        session=session,
+    )
+
+    comparison_snapshots, _ = await query_metrics_history(
+        metric_type=metric_type,
+        start_time=comparison_start,
+        end_time=comparison_end,
+        limit=limit,
+        interval=interval_value,
+        session=session,
+    )
+
+    current_avg = _average_primary(metric_type, current_snapshots)
+    comparison_avg = _average_primary(metric_type, comparison_snapshots)
+    if comparison_avg is None or comparison_avg == 0:
+        change_percent = None
+    elif current_avg is None:
+        change_percent = None
+    else:
+        change_percent = (current_avg - comparison_avg) / comparison_avg * 100
+
+    summary = {
+        "current_avg": current_avg,
+        "comparison_avg": comparison_avg,
+        "change_percent": change_percent,
+    }
+
+    return current_snapshots, comparison_snapshots, interval_label, summary
+
+
 async def get_latest_metrics(
     metric_type: str,
     limit: int = 1,

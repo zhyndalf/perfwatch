@@ -152,8 +152,8 @@ sequenceDiagram
 
         DashView-->>User: Display Dashboard
         deactivate DashView
+        deactivate Browser
     end
-    deactivate Browser
 ```
 
 ---

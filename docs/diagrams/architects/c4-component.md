@@ -231,7 +231,8 @@ async def lifespan(app: FastAPI):
 
 **history.py:**
 - `GET /api/history/metrics` - Query time range with downsampling
-- `GET /api/history/compare` - Compare two time periods
+- `GET /api/history/metrics/types` - List available metric types
+- `GET /api/history/compare` - Compare two time periods (supports both relative and custom range comparisons)
 - Aggregation logic for large datasets
 
 **retention.py:**

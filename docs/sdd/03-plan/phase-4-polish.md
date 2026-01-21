@@ -50,22 +50,25 @@
 
 ## T019: Comparison View {#t019}
 
-**Objective**: Implement same-period comparison feature.
+**Objective**: Implement time period comparison feature with dual modes (relative and custom range).
 
 **Task File**: [T019-comparison-view.md](../04-tasks/phase-4/T019-comparison-view.md)
 
 **Deliverables**:
-- Comparison API endpoint
-- Period selection (hour, day, week)
-- Comparison target (yesterday, last week)
-- Frontend comparison UI
-- Overlay chart display
+- Comparison API endpoint with dual modes
+- Relative comparison: period (hour, day, week) + compare_to (yesterday, last_week)
+- Custom range comparison: 4 explicit timestamps
+- Frontend comparison UI with mode selection
+- Overlay chart display with full time series
+- Summary statistics (current_avg, comparison_avg, change_%)
 
 **Acceptance Criteria**:
-- [ ] Can compare current hour vs yesterday
-- [ ] Can compare current day vs last week
-- [ ] Overlay chart shows both periods
-- [ ] Difference/change percentage shown
+- [x] Can compare using relative mode (period + compare_to)
+- [x] Can compare using custom ranges (4 timestamps)
+- [x] Custom ranges validated for same duration
+- [x] Overlay chart shows both time series
+- [x] Summary stats show averages and percentage changes
+- [x] Returns full data_points arrays for both periods
 
 ---
 
@@ -238,7 +241,7 @@ After Phase 4 is complete:
 The project is considered complete when:
 
 1. ✅ Real-time dashboard showing all specified metrics updating every 5 seconds
-2. ✅ Historical data viewable with same-period comparison
+2. ✅ Historical data viewable with dual-mode time period comparison (relative and custom ranges)
 3. ✅ User authentication working
 4. ✅ All services running via `docker-compose up`
 5. ✅ Data persists across container restarts

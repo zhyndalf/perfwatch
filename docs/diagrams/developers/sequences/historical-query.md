@@ -98,41 +98,78 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     User->>HistoryVue: Enable "Compare Mode"
-    User->>HistoryVue: Select Period 1 (e.g., last week)
-    User->>HistoryVue: Select Period 2 (e.g., this week)
-    User->>HistoryVue: Click "Compare"
 
-    HistoryVue->>HistoryStore: fetchComparison(period1, period2)
-    activate HistoryStore
+    alt Relative Comparison
+        User->>HistoryVue: Select Period (e.g., "last hour")
+        User->>HistoryVue: Select Compare To (e.g., "yesterday")
+        User->>HistoryVue: Click "Compare"
 
-    HistoryStore->>HistoryStore: loading = true
-    HistoryStore->>APIClient: GET /api/history/compare<br/>?start1=...&end1=...&start2=...&end2=...
-    activate APIClient
+        HistoryVue->>HistoryStore: fetchComparison(period, compare_to)
+        activate HistoryStore
 
-    APIClient->>Backend: HTTP GET /api/history/compare
-    activate Backend
-    Note over APIClient,Backend: Query params:<br/>start_time_1, end_time_1<br/>start_time_2, end_time_2
+        HistoryStore->>HistoryStore: loading = true
+        HistoryStore->>APIClient: GET /api/history/compare<br/>?metric_type=...&period=hour&compare_to=yesterday
+        activate APIClient
 
-    Backend->>HistoryAPI: compare_metrics(params, db)
-    activate HistoryAPI
+        APIClient->>Backend: HTTP GET /api/history/compare
+        activate Backend
+        Note over APIClient,Backend: Query params:<br/>metric_type, period, compare_to
 
-    par Query Period 1
-        HistoryAPI->>DB: SELECT AVG(cpu), AVG(memory), ...<br/>FROM metrics_snapshots<br/>WHERE timestamp BETWEEN start1 AND end1
-        activate DB
-        DB-->>HistoryAPI: Period 1 aggregates
-        deactivate DB
-    and Query Period 2
-        HistoryAPI->>DB: SELECT AVG(cpu), AVG(memory), ...<br/>FROM metrics_snapshots<br/>WHERE timestamp BETWEEN start2 AND end2
-        activate DB
-        DB-->>HistoryAPI: Period 2 aggregates
-        deactivate DB
+        Backend->>HistoryAPI: compare_metrics_history(params, db)
+        activate HistoryAPI
+
+        HistoryAPI->>HistoryAPI: Calculate time ranges:<br/>current = now - period<br/>comparison = current - compare_shift
+
+        par Query Current Period
+            HistoryAPI->>DB: SELECT * FROM metrics_snapshots<br/>WHERE metric_type = ? AND timestamp BETWEEN current_start AND current_end
+            activate DB
+            DB-->>HistoryAPI: Current period snapshots
+            deactivate DB
+        and Query Comparison Period
+            HistoryAPI->>DB: SELECT * FROM metrics_snapshots<br/>WHERE metric_type = ? AND timestamp BETWEEN comparison_start AND comparison_end
+            activate DB
+            DB-->>HistoryAPI: Comparison period snapshots
+            deactivate DB
+        end
+
+    else Custom Range Comparison
+        User->>HistoryVue: Select Period 1 (start_time_1, end_time_1)
+        User->>HistoryVue: Select Period 2 (start_time_2, end_time_2)
+        User->>HistoryVue: Click "Compare"
+
+        HistoryVue->>HistoryStore: fetchComparison(period1, period2)
+        activate HistoryStore
+
+        HistoryStore->>HistoryStore: loading = true
+        HistoryStore->>APIClient: GET /api/history/compare<br/>?start_time_1=...&end_time_1=...&start_time_2=...&end_time_2=...
+        activate APIClient
+
+        APIClient->>Backend: HTTP GET /api/history/compare
+        activate Backend
+        Note over APIClient,Backend: Query params:<br/>start_time_1, end_time_1<br/>start_time_2, end_time_2
+
+        Backend->>HistoryAPI: compare_metrics_custom_range(params, db)
+        activate HistoryAPI
+
+        HistoryAPI->>HistoryAPI: Validate periods have same duration
+
+        par Query Period 1
+            HistoryAPI->>DB: SELECT * FROM metrics_snapshots<br/>WHERE metric_type = ? AND timestamp BETWEEN start1 AND end1
+            activate DB
+            DB-->>HistoryAPI: Period 1 snapshots
+            deactivate DB
+        and Query Period 2
+            HistoryAPI->>DB: SELECT * FROM metrics_snapshots<br/>WHERE metric_type = ? AND timestamp BETWEEN start2 AND end2
+            activate DB
+            DB-->>HistoryAPI: Period 2 snapshots
+            deactivate DB
+        end
     end
 
-    HistoryAPI->>HistoryAPI: Calculate differences<br/>(period2 - period1)
-    HistoryAPI->>HistoryAPI: Calculate percentage changes
-    Note over HistoryAPI: e.g., CPU: +15.3%<br/>Memory: -5.2%
+    HistoryAPI->>HistoryAPI: Calculate summary statistics:<br/>- current_avg<br/>- comparison_avg<br/>- change_percent
+    Note over HistoryAPI: Extract primary values<br/>and compute averages
 
-    HistoryAPI-->>Backend: {<br/>  period1: { cpu: 45.2, memory: 8.1GB, ... },<br/>  period2: { cpu: 52.1, memory: 7.7GB, ... },<br/>  diff: { cpu: +6.9, memory: -0.4GB, ... },<br/>  percent: { cpu: +15.3%, memory: -4.9%, ... }<br/>}
+    HistoryAPI-->>Backend: {<br/>  current: { data_points: [...] },<br/>  comparison: { data_points: [...] },<br/>  summary: { current_avg, comparison_avg, change_percent }<br/>}
     deactivate HistoryAPI
 
     Backend-->>APIClient: 200 OK + comparison data
@@ -147,8 +184,8 @@ sequenceDiagram
 
     deactivate HistoryStore
 
-    HistoryVue->>HistoryVue: Render comparison table
-    Note over HistoryVue: Show side-by-side metrics<br/>with color-coded changes<br/>(green = improved, red = degraded)
+    HistoryVue->>HistoryVue: Render comparison charts and table
+    Note over HistoryVue: Show side-by-side time series<br/>with color-coded changes<br/>(green = improved, red = degraded)
 
     HistoryVue-->>User: Display comparison results
 ```

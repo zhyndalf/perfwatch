@@ -59,12 +59,17 @@
 ## [2026-01-20] - T019 - Comparison View
 
 ### Added
-- `/api/history/compare` endpoint for same-period comparisons
+- `/api/history/compare` endpoint with dual modes:
+  - **Relative comparison**: period (hour, day, week) + compare_to (yesterday, last_week)
+  - **Custom range comparison**: 4 explicit timestamps (start_time_1, end_time_1, start_time_2, end_time_2)
+- `/api/history/metrics/types` endpoint to list available metric types
 - Comparison UI controls and overlay series in History view
-- Summary statistics for current vs comparison periods
+- Summary statistics (current_avg, comparison_avg, change_percent) for period comparisons
+- Full data_points arrays in comparison responses (not just aggregates)
 
 ### Changed
-- Comparison series aligned to current-period timestamps for overlays
+- Comparison endpoint returns structured data: `current` and `comparison` objects with time series
+- Custom range validation ensures both periods have the same duration
 
 ---
 

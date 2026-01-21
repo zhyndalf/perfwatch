@@ -89,11 +89,18 @@ flowchart TD
     UserExplore -.->|New Query| SelectRange
     UserExplore -.->|Compare Mode| EnableCompare[Enable Comparison]
 
-    EnableCompare --> SelectPeriod1[Select Period 1<br/>Dates]
-    SelectPeriod1 --> SelectPeriod2[Select Period 2<br/>Dates]
-    SelectPeriod2 --> ClickCompare[Click 'Compare' Button]
+    EnableCompare --> ChooseMode{Choose<br/>Comparison Mode}
+
+    ChooseMode -->|Relative| SelectPeriod[Select Period:<br/>hour, day, week]
+    SelectPeriod --> SelectCompareTo[Select Compare To:<br/>yesterday, last_week]
+    SelectCompareTo --> ClickCompare[Click 'Compare' Button]
+
+    ChooseMode -->|Custom Range| SelectPeriod1[Select Period 1<br/>Start & End Dates]
+    SelectPeriod1 --> SelectPeriod2[Select Period 2<br/>Start & End Dates]
+    SelectPeriod2 --> ClickCompare
+
     ClickCompare --> SendCompareRequest[Send GET Request<br/>/api/history/compare]
-    SendCompareRequest --> ShowCompareResults[Show Side-by-Side<br/>Comparison Table]
+    SendCompareRequest --> ShowCompareResults[Show Side-by-Side<br/>Comparison Charts & Stats]
     ShowCompareResults --> HighlightDiff[Highlight Differences:<br/>Green = Better<br/>Red = Worse]
 
     style History fill:#42A5F5,color:#fff

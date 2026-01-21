@@ -168,7 +168,8 @@ flowchart TB
 - `GET /api/auth/me` - Get current user info
 - `POST /api/auth/password` - Change password
 - `GET /api/history/metrics` - Query historical data
-- `GET /api/history/compare` - Compare time periods
+- `GET /api/history/metrics/types` - List available metric types
+- `GET /api/history/compare` - Compare time periods (relative: period + compare_to, or custom: 4 timestamps)
 - `GET /api/retention` - Get retention policy
 - `PUT /api/retention` - Update retention policy
 - `POST /api/retention/cleanup` - Trigger cleanup

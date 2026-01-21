@@ -105,6 +105,38 @@ export const historyApi = {
       },
     })
   },
+
+  /**
+   * Compare metrics for two custom time ranges
+   * @param {string} metricType
+   * @param {string} startTime1
+   * @param {string} endTime1
+   * @param {string} startTime2
+   * @param {string} endTime2
+   * @param {number} [limit=1000]
+   * @param {string} [interval]
+   */
+  compareMetricsRange(
+    metricType,
+    startTime1,
+    endTime1,
+    startTime2,
+    endTime2,
+    limit = 1000,
+    interval
+  ) {
+    return api.get('/history/compare', {
+      params: {
+        metric_type: metricType,
+        start_time_1: startTime1,
+        end_time_1: endTime1,
+        start_time_2: startTime2,
+        end_time_2: endTime2,
+        limit,
+        interval,
+      },
+    })
+  },
 }
 
 // Retention API functions
