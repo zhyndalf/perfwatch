@@ -14,7 +14,12 @@ Real-time system performance monitoring web application.
 
 ## Development Progress
 
-> **100% Complete** (22/22 tasks)
+> **100% Complete + Refactored** (22/22 tasks + code cleanup)
+
+**Latest Update (2026-01-21)**: Code cleanup and maintainability improvements completed!
+- ✅ All 238 backend tests passing
+- ✅ Refactored code for better maintainability
+- ✅ Enhanced documentation (CONTRIBUTING.md, DEVELOPMENT.md, Makefile)
 
 ```mermaid
 flowchart TB
@@ -47,7 +52,7 @@ flowchart TB
         T013 --> T014 --> T015 --> T016 --> T017
     end
 
-    subgraph P4["Phase 4: Polish (100%)"]
+    subgraph P4["Phase 4: Polish (100%) ✅"]
         T018["✅ T018<br/>History"]
         T019["✅ T019<br/>Compare"]
         T020["✅ T020<br/>Retention"]
@@ -56,14 +61,21 @@ flowchart TB
         T018 --> T019 --> T020 --> T021 --> T022
     end
 
-    P1 --> P2 --> P3 --> P4
+    subgraph P5["Phase 5: Cleanup (100%) ✅"]
+        R001["✅ Refactor<br/>Code Cleanup"]
+        R002["✅ Refactor<br/>Documentation"]
+        R003["✅ Refactor<br/>DevEx Tools"]
+        R001 --> R002 --> R003
+    end
+
+    P1 --> P2 --> P3 --> P4 --> P5
 
     %% Styles
     classDef done fill:#2ecc71,stroke:#27ae60,color:#fff
     classDef progress fill:#f39c12,stroke:#e67e22,color:#fff
     classDef todo fill:#95a5a6,stroke:#7f8c8d,color:#fff
 
-    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012,T013,T014,T015,T016,T017,T018,T019,T020,T021,T022 done
+    class T001,T002,T003,T004,T005,T006,T007,T008,T009,T010,T011,T012,T013,T014,T015,T016,T017,T018,T019,T020,T021,T022,R001,R002,R003 done
 ```
 
 | Phase | Status | Tasks |
@@ -71,7 +83,8 @@ flowchart TB
 | Phase 1: Foundation | ✅ 100% | 5/5 |
 | Phase 2: Core Metrics | ✅ 100% | 7/7 |
 | Phase 3: Advanced | ✅ 100% | 5/5 |
-| Phase 4: Polish | 100% | 5/5 |
+| Phase 4: Polish | ✅ 100% | 5/5 |
+| Phase 5: Cleanup | ✅ 100% | Refactored |
 
 > 📋 Detailed progress: [docs/sdd/PROGRESS.md](./docs/sdd/PROGRESS.md)
 
@@ -95,6 +108,20 @@ flowchart TB
 
 ### Setup
 
+#### Option 1: Using Makefile (Recommended)
+
+```bash
+# Complete setup with one command
+make setup
+
+# Access the application
+# Frontend: http://localhost:3000 (admin/admin123)
+# Backend: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+#### Option 2: Manual Setup
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/zhyndalf/perfwatch.git
@@ -109,11 +136,13 @@ flowchart TB
 3. Start all services:
    ```bash
    docker compose up -d
+   # Or: make docker-up
    ```
 
 4. Run database migrations:
    ```bash
    docker compose exec backend alembic upgrade head
+   # Or: make db-upgrade
    ```
 
 5. Access the application:
@@ -129,6 +158,11 @@ flowchart TB
 ### Verify Setup
 
 ```bash
+# Check all services health
+make health
+
+# Or manually:
+curl http://localhost:8000/health
 # Check service status
 docker compose ps
 
@@ -145,6 +179,36 @@ curl -X POST http://localhost:8000/api/auth/login \
 
 # Stop all services
 docker compose down
+```
+
+### Common Commands
+
+```bash
+# Development
+make dev              # Start all services (alias for docker-up)
+make stop             # Stop all services
+make restart          # Restart all services
+make logs             # View all logs
+make logs-backend     # View backend logs only
+make logs-frontend    # View frontend logs only
+
+# Testing
+make test             # Run backend tests (238 tests)
+make backend-test-coverage  # Run tests with coverage report
+
+# Database
+make db-upgrade       # Run migrations
+make db-migrate MSG="description"  # Create new migration
+make db-downgrade     # Rollback one migration
+make db-shell         # PostgreSQL shell
+
+# Health & Status
+make health           # Check service health
+make ps               # Show running containers
+
+# Cleanup
+make clean            # Remove build artifacts
+make docker-clean     # Remove containers and volumes
 ```
 
 ## Development

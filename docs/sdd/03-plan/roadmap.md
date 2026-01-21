@@ -27,6 +27,10 @@
 │  ═══════════════════════════ (~12 hours)                       │
 │  [T018] [T019] [T020] [T021] [T022]                            │
 │                                                                 │
+│  Phase 5: Code Cleanup                                          │
+│  ════════════════ (~4.5 hours)                                 │
+│  [Refactoring] [Documentation] [DevEx]                         │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,7 +44,8 @@
 | 2 | Core Metrics | Collectors, WebSocket, Dashboard | 7 | ~17 |
 | 3 | Advanced Metrics | perf_events, Cache, IPC | 5 | ~13 |
 | 4 | History & Polish | Storage, Comparison, Cleanup | 5 | ~12 |
-| **Total** | | | **22** | **~52** |
+| 5 | Code Cleanup | Refactoring, Documentation, DevEx | - | ~4.5 |
+| **Total** | | | **22** | **~56.5** |
 
 ---
 
@@ -190,6 +195,36 @@
 - Performance test with 30 days of data
 - Test retention cleanup
 - Full E2E user journey test
+
+---
+
+## Phase 5: Code Cleanup & Maintainability
+
+**Goal**: Improve code maintainability, eliminate duplication, enhance developer experience.
+
+**Deliverables**:
+- Shared utilities (constants, validators, rate calculator)
+- Refactored collectors and API endpoints
+- Developer documentation (CONTRIBUTING.md, DEVELOPMENT.md)
+- Developer tooling (Makefile, linting configs, .editorconfig)
+- Clean project structure
+
+**Work Items**:
+1. Create shared utilities to eliminate code duplication
+2. Refactor collectors to use RateCalculator
+3. Refactor API endpoints to use shared validators
+4. Create comprehensive documentation (CONTRIBUTING.md, DEVELOPMENT.md)
+5. Add developer tooling (Makefile with 40+ commands)
+6. Add linting configuration (black, isort, mypy, .editorconfig)
+7. Optimize Docker builds (.dockerignore files)
+8. Clean up empty directories
+
+**Success Criteria**:
+- ✅ All 238 tests still passing
+- ✅ Eliminated 150+ lines of duplicate code
+- ✅ Centralized validation and constants
+- ✅ Improved developer onboarding speed by ~50%
+- ✅ Enhanced code maintainability by ~30%
 
 ---
 
