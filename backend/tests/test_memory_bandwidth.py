@@ -183,7 +183,7 @@ class TestMemoryBandwidthRateCalculation:
         # First collection
         with patch.object(Path, 'exists', return_value=True):
             with patch.object(Path, 'read_text', return_value=SAMPLE_VMSTAT):
-                with patch('time.monotonic', return_value=0.0):
+                with patch('app.utils.rate_calculator.time.time', return_value=0.0):
                     data1 = await collector.collect()
 
         assert data1["available"] is True
@@ -192,7 +192,7 @@ class TestMemoryBandwidthRateCalculation:
         # Second collection (1 second later, with updated values)
         with patch.object(Path, 'exists', return_value=True):
             with patch.object(Path, 'read_text', return_value=SAMPLE_VMSTAT_UPDATED):
-                with patch('time.monotonic', return_value=1.0):
+                with patch('app.utils.rate_calculator.time.time', return_value=1.0):
                     data2 = await collector.collect()
 
         assert data2["available"] is True
@@ -221,13 +221,13 @@ class TestMemoryBandwidthRateCalculation:
         # First collection
         with patch.object(Path, 'exists', return_value=True):
             with patch.object(Path, 'read_text', return_value=SAMPLE_VMSTAT):
-                with patch('time.monotonic', return_value=0.0):
+                with patch('app.utils.rate_calculator.time.time', return_value=0.0):
                     await collector.collect()
 
         # Second collection (5 seconds later)
         with patch.object(Path, 'exists', return_value=True):
             with patch.object(Path, 'read_text', return_value=SAMPLE_VMSTAT_UPDATED):
-                with patch('time.monotonic', return_value=5.0):
+                with patch('app.utils.rate_calculator.time.time', return_value=5.0):
                     data = await collector.collect()
 
         # pgpgin increased by 10000 KB in 5 seconds = 2000 KB/sec
@@ -243,15 +243,16 @@ class TestMemoryBandwidthReset:
         """Test that reset() clears cached state."""
         collector = MemoryBandwidthCollector()
 
-        # Set some state
-        collector._last_values = {"pgpgin": 1000}
-        collector._last_time = 123.0
+        # Set some state in the rate calculator
+        collector._rate_calculator._last_counters = {"pgpgin": 1000}
+        collector._rate_calculator._last_times = {"pgpgin": 123.0}
         collector._available = True
 
         collector.reset()
 
-        assert collector._last_values is None
-        assert collector._last_time is None
+        # Check that rate calculator state is cleared
+        assert len(collector._rate_calculator._last_counters) == 0
+        assert len(collector._rate_calculator._last_times) == 0
         assert collector._available is None
 
 

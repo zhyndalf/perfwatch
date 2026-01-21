@@ -7,16 +7,12 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.api.deps import CurrentUser, DbSession
+from app.constants import VALID_METRIC_TYPES
 from app.services.metrics_storage import compare_metrics_history, query_metrics_history, resolve_interval
+from app.utils.validators import validate_compare_to, validate_metric_type, validate_period, validate_time_range
 
 
 router = APIRouter(prefix="/api/history", tags=["history"])
-
-
-# Valid metric types
-VALID_METRIC_TYPES = {"cpu", "memory", "network", "disk", "perf_events", "memory_bandwidth"}
-VALID_PERIODS = {"hour", "day", "week"}
-VALID_COMPARE_TO = {"yesterday", "last_week"}
 
 
 class HistoryDataPoint(BaseModel):
@@ -96,19 +92,9 @@ async def get_metrics_history(
     GET /api/history/metrics?metric_type=cpu&start_time=2026-01-20T00:00:00Z&end_time=2026-01-20T23:59:59Z
     ```
     """
-    # Validate metric type
-    if metric_type not in VALID_METRIC_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid metric_type. Must be one of: {', '.join(sorted(VALID_METRIC_TYPES))}",
-        )
-
-    # Validate time range
-    if start_time >= end_time:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_time must be before end_time",
-        )
+    # Validate inputs
+    validate_metric_type(metric_type)
+    validate_time_range(start_time, end_time)
 
     # Validate interval
     try:
@@ -169,24 +155,13 @@ async def compare_metrics(
         description="Aggregation interval: 5s, 1m, 5m, 1h, auto",
     ),
 ) -> ComparisonResponse:
-    if metric_type not in VALID_METRIC_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid metric_type. Must be one of: {', '.join(sorted(VALID_METRIC_TYPES))}",
-        )
+    # Validate inputs
+    validate_metric_type(metric_type)
 
     period = period.lower()
     compare_to = compare_to.lower()
-    if period not in VALID_PERIODS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}",
-        )
-    if compare_to not in VALID_COMPARE_TO:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid compare_to. Must be one of: {', '.join(sorted(VALID_COMPARE_TO))}",
-        )
+    validate_period(period)
+    validate_compare_to(compare_to)
 
     now = datetime.now(timezone.utc)
     if period == "hour":

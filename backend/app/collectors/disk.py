@@ -3,13 +3,13 @@
 Collects disk I/O statistics and partition usage.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import logging
-import time
 
 import psutil
 
 from app.collectors.base import BaseCollector
+from app.utils.rate_calculator import RateCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +32,8 @@ class DiskCollector(BaseCollector):
             enabled: Whether this collector is active
         """
         super().__init__(enabled=enabled)
-        # Store last values for rate calculation
-        self._last_io: Optional[Dict[str, Any]] = None
-        self._last_time: Optional[float] = None
+        # Use shared rate calculator
+        self._rate_calculator = RateCalculator()
 
     async def collect(self) -> Dict[str, Any]:
         """Collect disk metrics.
@@ -86,33 +85,22 @@ class DiskCollector(BaseCollector):
         Returns:
             Dictionary with I/O stats.
         """
-        current_time = time.time()
-
         try:
             io_counters = psutil.disk_io_counters()
             if io_counters is None:
                 return self._empty_io_stats()
 
-            # Calculate rates
-            read_bytes_per_sec = 0.0
-            write_bytes_per_sec = 0.0
-
-            if self._last_io and self._last_time:
-                time_delta = current_time - self._last_time
-                if time_delta > 0:
-                    read_bytes_per_sec = (io_counters.read_bytes - self._last_io["read_bytes"]) / time_delta
-                    write_bytes_per_sec = (io_counters.write_bytes - self._last_io["write_bytes"]) / time_delta
-
-            # Update last values
-            self._last_io = {
-                "read_bytes": io_counters.read_bytes,
-                "write_bytes": io_counters.write_bytes,
-            }
-            self._last_time = current_time
+            # Calculate rates using RateCalculator
+            read_bytes_per_sec = self._rate_calculator.calculate_rate(
+                "read_bytes", io_counters.read_bytes
+            )
+            write_bytes_per_sec = self._rate_calculator.calculate_rate(
+                "write_bytes", io_counters.write_bytes
+            )
 
             return {
-                "read_bytes_per_sec": max(0, read_bytes_per_sec),
-                "write_bytes_per_sec": max(0, write_bytes_per_sec),
+                "read_bytes_per_sec": read_bytes_per_sec,
+                "write_bytes_per_sec": write_bytes_per_sec,
                 "read_bytes": io_counters.read_bytes,
                 "write_bytes": io_counters.write_bytes,
                 "read_count": io_counters.read_count,

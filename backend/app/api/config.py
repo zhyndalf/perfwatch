@@ -7,11 +7,10 @@ from app.config import settings
 from app.schemas.config import ConfigResponse, ConfigUpdate, ConfigUpdateResponse
 from app.services.config import get_config_values, update_config_values
 from app.services.retention import get_retention_policy, update_retention_policy
+from app.utils.validators import validate_downsample_interval
 
 
 router = APIRouter(prefix="/api/config", tags=["config"])
-
-VALID_DOWNSAMPLE_INTERVALS = {"5s", "1m", "5m", "1h"}
 
 
 def _validate_retention_update(
@@ -19,14 +18,7 @@ def _validate_retention_update(
     downsample_after_days: int,
     downsample_interval: str,
 ) -> None:
-    if downsample_interval not in VALID_DOWNSAMPLE_INTERVALS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Invalid downsample_interval. Must be one of: "
-                + ", ".join(sorted(VALID_DOWNSAMPLE_INTERVALS))
-            ),
-        )
+    validate_downsample_interval(downsample_interval)
     if downsample_after_days > retention_days:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

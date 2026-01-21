@@ -14,11 +14,10 @@ from app.services.retention import (
     get_retention_policy,
     update_retention_policy,
 )
+from app.utils.validators import validate_downsample_interval
 
 
 router = APIRouter(prefix="/api/retention", tags=["retention"])
-
-VALID_DOWNSAMPLE_INTERVALS = {"5s", "1m", "5m", "1h"}
 
 
 @router.get("", response_model=RetentionPolicyResponse)
@@ -46,11 +45,8 @@ async def update_retention(
     payload: RetentionPolicyUpdate,
 ) -> RetentionPolicyResponse:
     """Update retention policy settings."""
-    if payload.downsample_interval and payload.downsample_interval not in VALID_DOWNSAMPLE_INTERVALS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid downsample_interval. Must be one of: {', '.join(sorted(VALID_DOWNSAMPLE_INTERVALS))}",
-        )
+    if payload.downsample_interval:
+        validate_downsample_interval(payload.downsample_interval)
 
     existing = await get_retention_policy(db)
     effective_retention = payload.retention_days or existing.retention_days

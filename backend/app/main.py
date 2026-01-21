@@ -133,7 +133,6 @@ async def root():
 async def db_status():
     """Check database connection status."""
     from sqlalchemy import text
-    from app.database import AsyncSessionLocal
 
     try:
         async with AsyncSessionLocal() as session:

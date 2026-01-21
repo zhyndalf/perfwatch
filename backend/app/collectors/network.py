@@ -3,13 +3,13 @@
 Collects network I/O statistics and per-interface data.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 import logging
-import time
 
 import psutil
 
 from app.collectors.base import BaseCollector
+from app.utils.rate_calculator import RateCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,8 @@ class NetworkCollector(BaseCollector):
             enabled: Whether this collector is active
         """
         super().__init__(enabled=enabled)
-        # Store last values for rate calculation
-        self._last_counters: Optional[Dict[str, Any]] = None
-        self._last_time: Optional[float] = None
+        # Use shared rate calculator
+        self._rate_calculator = RateCalculator()
 
     async def collect(self) -> Dict[str, Any]:
         """Collect network metrics.
@@ -43,31 +42,20 @@ class NetworkCollector(BaseCollector):
         Returns:
             Dictionary containing network metrics.
         """
-        current_time = time.time()
-
         # Get network I/O counters
         net_io = psutil.net_io_counters()
 
-        # Calculate rates
-        bytes_sent_per_sec = 0.0
-        bytes_recv_per_sec = 0.0
-
-        if self._last_counters and self._last_time:
-            time_delta = current_time - self._last_time
-            if time_delta > 0:
-                bytes_sent_per_sec = (net_io.bytes_sent - self._last_counters["bytes_sent"]) / time_delta
-                bytes_recv_per_sec = (net_io.bytes_recv - self._last_counters["bytes_recv"]) / time_delta
-
-        # Update last values for next calculation
-        self._last_counters = {
-            "bytes_sent": net_io.bytes_sent,
-            "bytes_recv": net_io.bytes_recv,
-        }
-        self._last_time = current_time
+        # Calculate rates using RateCalculator
+        bytes_sent_per_sec = self._rate_calculator.calculate_rate(
+            "bytes_sent", net_io.bytes_sent
+        )
+        bytes_recv_per_sec = self._rate_calculator.calculate_rate(
+            "bytes_recv", net_io.bytes_recv
+        )
 
         result: Dict[str, Any] = {
-            "bytes_sent_per_sec": max(0, bytes_sent_per_sec),
-            "bytes_recv_per_sec": max(0, bytes_recv_per_sec),
+            "bytes_sent_per_sec": bytes_sent_per_sec,
+            "bytes_recv_per_sec": bytes_recv_per_sec,
             "total_bytes_sent": net_io.bytes_sent,
             "total_bytes_recv": net_io.bytes_recv,
             "packets_sent": net_io.packets_sent,

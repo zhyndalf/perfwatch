@@ -10,11 +10,11 @@ permissions typically not available in containers.
 """
 
 import logging
-import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from app.collectors.base import BaseCollector
+from app.utils.rate_calculator import RateCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +53,7 @@ class MemoryBandwidthCollector(BaseCollector):
             enabled: Whether this collector should be active
         """
         super().__init__(enabled=enabled)
-        self._last_values: Optional[Dict[str, int]] = None
-        self._last_time: Optional[float] = None
+        self._rate_calculator = RateCalculator()
         self._available: Optional[bool] = None
 
     def _parse_vmstat(self) -> Optional[Dict[str, int]]:
@@ -122,7 +121,6 @@ class MemoryBandwidthCollector(BaseCollector):
             Note: First call returns zeros (needs two readings to calculate rates).
         """
         current_values = self._parse_vmstat()
-        current_time = time.monotonic()
 
         if current_values is None:
             self._available = False
@@ -130,44 +128,25 @@ class MemoryBandwidthCollector(BaseCollector):
 
         self._available = True
 
-        # First call - store values and return zeros
-        if self._last_values is None or self._last_time is None:
-            self._last_values = current_values
-            self._last_time = current_time
-            return {
-                "available": True,
-                "pgpgin_per_sec": 0.0,
-                "pgpgout_per_sec": 0.0,
-                "pswpin_per_sec": 0.0,
-                "pswpout_per_sec": 0.0,
-                "page_io_bytes_per_sec": 0.0,
-                "swap_io_bytes_per_sec": 0.0,
-                "pgfault_per_sec": 0.0,
-                "pgmajfault_per_sec": 0.0,
-            }
-
-        # Calculate time delta
-        time_delta = current_time - self._last_time
-        if time_delta <= 0:
-            time_delta = 1.0  # Avoid division by zero
-
-        # Calculate rates
-        def calc_rate(key: str) -> float:
-            """Calculate rate for a given metric."""
-            current = current_values.get(key, 0)
-            last = self._last_values.get(key, 0)
-            delta = current - last
-            # Handle counter wraparound (unlikely but possible)
-            if delta < 0:
-                delta = current
-            return delta / time_delta
-
-        pgpgin_per_sec = calc_rate("pgpgin")
-        pgpgout_per_sec = calc_rate("pgpgout")
-        pswpin_per_sec = calc_rate("pswpin")
-        pswpout_per_sec = calc_rate("pswpout")
-        pgfault_per_sec = calc_rate("pgfault")
-        pgmajfault_per_sec = calc_rate("pgmajfault")
+        # Calculate rates using RateCalculator
+        pgpgin_per_sec = self._rate_calculator.calculate_rate(
+            "pgpgin", current_values.get("pgpgin", 0)
+        )
+        pgpgout_per_sec = self._rate_calculator.calculate_rate(
+            "pgpgout", current_values.get("pgpgout", 0)
+        )
+        pswpin_per_sec = self._rate_calculator.calculate_rate(
+            "pswpin", current_values.get("pswpin", 0)
+        )
+        pswpout_per_sec = self._rate_calculator.calculate_rate(
+            "pswpout", current_values.get("pswpout", 0)
+        )
+        pgfault_per_sec = self._rate_calculator.calculate_rate(
+            "pgfault", current_values.get("pgfault", 0)
+        )
+        pgmajfault_per_sec = self._rate_calculator.calculate_rate(
+            "pgmajfault", current_values.get("pgmajfault", 0)
+        )
 
         # pgpgin/pgpgout are in KB, convert to bytes for total
         # page_io is disk ↔ memory I/O (not swap)
@@ -176,10 +155,6 @@ class MemoryBandwidthCollector(BaseCollector):
         # Swap I/O: pswpin/pswpout are in pages (typically 4KB)
         page_size = 4096  # Standard page size
         swap_io_bytes_per_sec = (pswpin_per_sec + pswpout_per_sec) * page_size
-
-        # Store current values for next calculation
-        self._last_values = current_values
-        self._last_time = current_time
 
         return {
             "available": True,
@@ -202,6 +177,5 @@ class MemoryBandwidthCollector(BaseCollector):
 
         Clears cached values, useful for testing or re-initialization.
         """
-        self._last_values = None
-        self._last_time = None
+        self._rate_calculator.reset()
         self._available = None
