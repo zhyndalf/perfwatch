@@ -12,6 +12,102 @@ Real-time system performance monitoring web application.
 - **Dark Theme**: Modern dark UI with TailwindCSS
 - **Dockerized**: Easy setup with Docker Compose
 
+## Screenshots
+
+### 🔐 Login Page
+<details>
+<summary>Click to view</summary>
+
+**Login with default credentials (admin/admin123)**
+
+![Login Page](./docs/screenshots/01-login.png)
+
+*Simple authentication interface with JWT token-based security*
+
+> 📝 **Note**: Screenshots pending. To add real screenshots, see [docs/screenshots/README.md](./docs/screenshots/README.md)
+
+</details>
+
+### 📊 Real-Time Dashboard
+<details>
+<summary>Click to view</summary>
+
+**Live metrics updating every 5 seconds via WebSocket**
+
+![Dashboard](./docs/screenshots/02-dashboard.png)
+
+**Features:**
+- 6 ECharts visualizations (CPU, Memory, Network, Disk, Perf Events, Memory Bandwidth)
+- Real-time updates with connection status indicator
+- Color-coded metrics for quick insights
+- Live timestamps showing data freshness
+
+> 📝 **Note**: Screenshots pending. To add real screenshots, see [docs/screenshots/README.md](./docs/screenshots/README.md)
+
+</details>
+
+### 📈 Historical Data View
+<details>
+<summary>Click to view</summary>
+
+**Query metrics for any time range**
+
+![History View](./docs/screenshots/04-history.png)
+
+**Features:**
+- Date/time range picker
+- Interactive line charts with zoom and pan
+- Downsampling for large time ranges
+- Time period comparison mode
+
+![Comparison Mode](./docs/screenshots/05-history-comparison.png)
+
+*Compare two time periods side-by-side with percentage changes*
+
+> 📝 **Note**: Screenshots pending. To add real screenshots, see [docs/screenshots/README.md](./docs/screenshots/README.md)
+
+</details>
+
+### ⚙️ Settings & Configuration
+<details>
+<summary>Click to view</summary>
+
+**System information and retention policy management**
+
+![Settings Page](./docs/screenshots/06-settings.png)
+
+**Features:**
+- System info (hostname, CPU count, total memory)
+- Retention policy configuration (1-365 days)
+- Manual cleanup trigger
+- Password change
+
+> 📝 **Note**: Screenshots pending. To add real screenshots, see [docs/screenshots/README.md](./docs/screenshots/README.md)
+
+</details>
+
+### 🔄 WebSocket Connection States
+<details>
+<summary>Click to view</summary>
+
+**Connection status indicators**
+
+![WebSocket States](./docs/screenshots/07-websocket-connection.png)
+
+**States:**
+- 🟢 **Connected** - Live metrics streaming
+- 🟡 **Connecting...** - Establishing connection
+- 🟠 **Reconnecting...** - Auto-retry with exponential backoff
+- 🔴 **Connection Failed** - Manual retry needed
+
+> 📝 **Note**: Screenshots pending. To add real screenshots, see [docs/screenshots/README.md](./docs/screenshots/README.md)
+
+</details>
+
+---
+
+**Want to contribute screenshots?** See [docs/screenshots/README.md](./docs/screenshots/README.md) for guidelines.
+
 ## Development Progress
 
 > **100% Complete + Refactored** (22/22 tasks + code cleanup)
@@ -98,6 +194,75 @@ flowchart TB
 | Auth | JWT (python-jose) + bcrypt |
 | Collectors | psutil (CPU, Memory, Network, Disk), perf_events (hardware counters) |
 | Deployment | Docker Compose |
+
+## Architecture Overview
+
+> 📐 **[View All Diagrams →](./docs/diagrams/README.md)** (C4 models, sequences, database schema, user flows)
+
+### System Architecture
+
+```mermaid
+graph TB
+    User[👤 System Administrator]
+
+    subgraph Docker["🐳 Docker Compose"]
+        Frontend[🌐 Frontend<br/>Vue.js 3 + ECharts<br/>Port 3000]
+        Backend[⚙️ Backend<br/>FastAPI + WebSocket<br/>Port 8000]
+        Database[(💾 PostgreSQL 15<br/>JSONB Storage<br/>Port 5432)]
+
+        subgraph Collectors["📊 Metrics Collectors"]
+            CPU[CPU Collector<br/>psutil]
+            Memory[Memory Collector<br/>psutil]
+            Network[Network Collector<br/>psutil]
+            Disk[Disk Collector<br/>psutil]
+            Perf[Perf Events<br/>perf_events]
+            Bandwidth[Memory BW<br/>/proc/vmstat]
+        end
+    end
+
+    LinuxKernel[🐧 Linux Kernel<br/>Metrics Source]
+
+    User -->|HTTP :3000| Frontend
+    Frontend -->|REST API| Backend
+    Frontend -->|WebSocket<br/>Real-time Stream| Backend
+    Backend -->|SQL| Database
+    Backend --> Collectors
+    Collectors -->|Every 5s| LinuxKernel
+
+    classDef userStyle fill:#4CAF50,stroke:#2E7D32,color:#fff
+    classDef frontendStyle fill:#42A5F5,stroke:#1565C0,color:#fff
+    classDef backendStyle fill:#66BB6A,stroke:#2E7D32,color:#fff
+    classDef dbStyle fill:#FFA726,stroke:#E65100,color:#fff
+    classDef collectorStyle fill:#AB47BC,stroke:#6A1B9A,color:#fff
+    classDef kernelStyle fill:#78909C,stroke:#37474F,color:#fff
+
+    class User userStyle
+    class Frontend frontendStyle
+    class Backend backendStyle
+    class Database dbStyle
+    class CPU,Memory,Network,Disk,Perf,Bandwidth collectorStyle
+    class LinuxKernel kernelStyle
+```
+
+**Data Flow:**
+```
+Linux Kernel → Collectors (every 5s) → Aggregator → WebSocket (real-time) → Frontend
+                                                  → Database (persist) → Historical Queries
+```
+
+**Key Features:**
+- 🔴 **Real-time**: WebSocket streams metrics every 5 seconds
+- 📈 **6 Collectors**: CPU, Memory, Network, Disk, Perf Events, Memory Bandwidth
+- 💾 **JSONB Storage**: Flexible schema in PostgreSQL
+- 🔒 **JWT Auth**: Secure token-based authentication
+- 📊 **ECharts**: Interactive visualizations
+- 🐳 **Docker**: One-command deployment
+
+**Learn More:**
+- [C4 Container Diagram](./docs/diagrams/architects/c4-container.md) - Detailed component view
+- [WebSocket Flow](./docs/diagrams/developers/sequences/websocket.md) - Real-time metrics streaming
+- [Database Schema](./docs/diagrams/developers/database-schema.md) - Tables and relationships
+- [User Flows](./docs/diagrams/product-managers/user-flows.md) - User journey
 
 ## Quick Start
 
@@ -235,6 +400,8 @@ perfwatch/
 │       ├── styles/    # TailwindCSS
 │       └── views/     # Page components
 ├── docs/              # Documentation
+│   ├── diagrams/      # Visual documentation (C4, sequences, flows)
+│   ├── screenshots/   # Application screenshots
 │   └── sdd/           # Specification Driven Development docs
 ├── docker-compose.yml # Service orchestration
 └── .env.example       # Environment template
@@ -290,6 +457,13 @@ PerfWatch includes 6 system metrics collectors:
 
 ## Documentation
 
+### Visual Documentation
+See [docs/diagrams/README.md](./docs/diagrams/README.md) for comprehensive diagrams organized by audience:
+- **Architects**: C4 diagrams, technology stack, high-level architecture
+- **Developers**: Deployment, sequences, database schema, class diagrams
+- **Product Managers**: User flows, state machines, feature workflows
+
+### Project Specification
 See [docs/sdd/README.md](./docs/sdd/README.md) for detailed project documentation including:
 - Architecture decisions
 - API specifications
