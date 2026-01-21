@@ -5,9 +5,11 @@ Real-time system performance monitoring web application.
 ## Features
 
 - **Real-time Metrics**: CPU, Memory, Disk, Network monitoring with 5-second updates
+- **Historical Queries**: Query any time range with automatic downsampling
+- **Dual-Mode Comparison**: Compare metrics using relative (yesterday/last week) or custom date ranges
 - **Interactive Charts**: Beautiful visualizations powered by ECharts
-- **Process Monitoring**: Track individual process resource usage
 - **WebSocket Updates**: Live data streaming to the browser
+- **Data Retention**: Configurable retention policies with automatic cleanup
 - **JWT Authentication**: Secure login with token-based auth
 - **Dark Theme**: Modern dark UI with TailwindCSS
 - **Dockerized**: Easy setup with Docker Compose
@@ -58,11 +60,13 @@ Real-time system performance monitoring web application.
 - Date/time range picker
 - Interactive line charts with zoom and pan
 - Downsampling for large time ranges
-- Time period comparison mode
+- Dual-mode time period comparison:
+  - **Relative mode**: Compare hour/day/week vs yesterday/last week
+  - **Custom range mode**: Compare any two custom date ranges
 
 ![Comparison Mode](./docs/screenshots/05-history-comparison.png)
 
-*Compare two time periods side-by-side with percentage changes*
+*Compare two time periods with overlay charts and percentage changes*
 
 > 📝 **Note**: Screenshots pending. To add real screenshots, see [docs/screenshots/README.md](./docs/screenshots/README.md)
 
@@ -453,7 +457,28 @@ PerfWatch includes 6 system metrics collectors:
 | `/api/auth/login` | POST | Get JWT token | No |
 | `/api/auth/me` | GET | Current user info | Yes |
 | `/api/auth/password` | PUT | Change password | Yes |
+| `/api/ws/metrics` | WebSocket | Real-time metrics stream | Yes (JWT in query param) |
+| `/api/history/metrics` | GET | Query historical data | Yes |
+| `/api/history/metrics/types` | GET | List available metric types | Yes |
+| `/api/history/compare` | GET | Compare time periods (dual-mode) | Yes |
+| `/api/retention` | GET/PUT | Manage retention policy | Yes |
+| `/api/retention/cleanup` | POST | Trigger manual cleanup | Yes |
+| `/api/config` | GET | System configuration | Yes |
 | `/health` | GET | Health check | No |
+
+### History Comparison Modes
+
+The `/api/history/compare` endpoint supports two comparison modes:
+
+**Relative Mode:**
+```bash
+GET /api/history/compare?metric_type=cpu&period=hour&compare_to=yesterday
+```
+
+**Custom Range Mode:**
+```bash
+GET /api/history/compare?metric_type=cpu&start_time_1=2026-01-20T10:00:00Z&end_time_1=2026-01-20T12:00:00Z&start_time_2=2026-01-21T10:00:00Z&end_time_2=2026-01-21T12:00:00Z
+```
 
 ## Documentation
 
