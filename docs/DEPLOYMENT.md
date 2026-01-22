@@ -11,7 +11,7 @@ This guide walks you through deploying PerfWatch on a bare Linux machine from sc
 - **Architecture**: x86_64 (amd64) or ARM64 (aarch64)
 - **RAM**: Minimum 2GB, recommended 4GB+
 - **Disk**: Minimum 10GB free space
-- **Network**: Internet access for initial setup
+- **Network**: Internet access for initial setup (or use the offline methods below)
 - **Privileges**: Root or sudo access
 
 ### Why Linux Only?
@@ -108,6 +108,90 @@ docker compose exec backend uname -m
 # Test perf stat counters
 docker compose exec backend perf stat -e cycles,instructions -a sleep 1
 # Expected: Non-zero values. If <not supported>, PMU is not exposed.
+```
+
+---
+
+## Offline / Air-Gapped Install (No Network on Target)
+
+Use an internet-connected staging machine of the same architecture to build and
+export images, then transfer the artifacts to the offline host. The offline host
+does not need network access once Docker is installed (use offline package
+bundles or preinstall Docker/Compose on the target).
+
+Makefile shortcuts are available:
+- `make offline-bundle-amd64` or `make offline-bundle-arm64`
+- `make offline-load-amd64` or `make offline-load-arm64`
+- `make offline-up` and `make offline-migrate`
+
+### Method A: x86_64 (amd64) Offline Using Prebuilt Images
+
+**On an online x86_64 staging machine:**
+
+```bash
+git clone https://github.com/zhyndalf/perfwatch.git
+cd perfwatch
+
+# Build images locally
+docker build -t perfwatch-backend:offline ./backend
+docker build -t perfwatch-frontend:offline ./frontend
+docker pull postgres:15
+
+# Export images and source bundle
+docker save -o perfwatch-images-amd64.tar \
+  perfwatch-backend:offline perfwatch-frontend:offline postgres:15
+tar -czf perfwatch-src.tar.gz perfwatch
+```
+
+**On the offline x86_64 host:**
+
+```bash
+tar -xzf perfwatch-src.tar.gz
+cd perfwatch
+cp .env.example .env
+
+docker load -i perfwatch-images-amd64.tar
+docker compose -f docker-compose.offline.yml up -d
+docker compose -f docker-compose.offline.yml exec backend alembic upgrade head
+```
+
+### Method B: ARM64 (aarch64) Offline Using Prebuilt Images
+
+**On an online ARM64 staging machine:**
+
+```bash
+git clone https://github.com/zhyndalf/perfwatch.git
+cd perfwatch
+
+# Build images locally
+docker build -t perfwatch-backend:offline ./backend
+docker build -t perfwatch-frontend:offline ./frontend
+docker pull postgres:15
+
+# Export images and source bundle
+docker save -o perfwatch-images-arm64.tar \
+  perfwatch-backend:offline perfwatch-frontend:offline postgres:15
+tar -czf perfwatch-src.tar.gz perfwatch
+```
+
+**On the offline ARM64 host:**
+
+```bash
+tar -xzf perfwatch-src.tar.gz
+cd perfwatch
+cp .env.example .env
+
+docker load -i perfwatch-images-arm64.tar
+docker compose -f docker-compose.offline.yml up -d
+docker compose -f docker-compose.offline.yml exec backend alembic upgrade head
+```
+
+**Optional (cross-build ARM64 on x86_64):**
+
+```bash
+docker buildx build --platform linux/arm64 -t perfwatch-backend:offline --load ./backend
+docker buildx build --platform linux/arm64 -t perfwatch-frontend:offline --load ./frontend
+docker pull --platform linux/arm64 postgres:15
 ```
 
 ---
