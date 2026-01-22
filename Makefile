@@ -1,4 +1,4 @@
-.PHONY: help docker-up docker-down docker-build docker-logs backend-test backend-lint backend-shell frontend-build frontend-dev frontend-shell db-migrate db-upgrade db-downgrade db-shell clean
+.PHONY: help docker-up docker-down docker-build docker-logs backend-test backend-lint backend-shell frontend-build frontend-dev frontend-shell db-migrate db-upgrade db-downgrade db-shell clean docker-buildx-setup docker-build-multiarch docker-build-arm docker-push-multiarch docker-buildx-info
 
 ##@ General
 
@@ -141,3 +141,50 @@ setup: docker-build docker-up db-upgrade ## Complete setup (build, start, migrat
 	@echo "Backend: http://localhost:8000"
 	@echo "API Docs: http://localhost:8000/docs"
 	@echo "Login: admin / admin123"
+
+##@ Multi-Architecture Builds
+
+BUILDX_BUILDER := perfwatch-builder
+REGISTRY := ghcr.io/zhyndalf
+BACKEND_IMAGE := $(REGISTRY)/perfwatch-backend
+FRONTEND_IMAGE := $(REGISTRY)/perfwatch-frontend
+
+docker-buildx-setup: ## Set up Docker Buildx for multi-arch builds
+	@docker buildx inspect $(BUILDX_BUILDER) >/dev/null 2>&1 || \
+		docker buildx create --name $(BUILDX_BUILDER) --driver docker-container --bootstrap
+	@docker buildx use $(BUILDX_BUILDER)
+	@echo "✅ Buildx builder '$(BUILDX_BUILDER)' is ready"
+
+docker-build-multiarch: docker-buildx-setup ## Build multi-arch images (amd64 + arm64) locally
+	@echo "Building backend for linux/amd64,linux/arm64..."
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(BACKEND_IMAGE):latest ./backend
+	@echo "Building frontend for linux/amd64,linux/arm64..."
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(FRONTEND_IMAGE):latest ./frontend
+	@echo "✅ Multi-arch build complete (not pushed)"
+
+docker-build-arm: docker-buildx-setup ## Build ARM64 images and load locally (for testing)
+	@echo "Building backend for linux/arm64..."
+	docker buildx build --platform linux/arm64 \
+		-t perfwatch-backend:arm64-test --load ./backend
+	@echo "Building frontend for linux/arm64..."
+	docker buildx build --platform linux/arm64 \
+		-t perfwatch-frontend:arm64-test --load ./frontend
+	@echo "✅ ARM64 images loaded locally"
+	@echo "Test with: docker run --rm perfwatch-backend:arm64-test uname -m"
+
+docker-push-multiarch: docker-buildx-setup ## Build and push multi-arch images to GHCR
+	@echo "Building and pushing backend..."
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(BACKEND_IMAGE):latest --push ./backend
+	@echo "Building and pushing frontend..."
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(FRONTEND_IMAGE):latest --push ./frontend
+	@echo "✅ Multi-arch images pushed to $(REGISTRY)"
+
+docker-buildx-info: ## Show buildx builder info and platforms
+	@docker buildx ls
+	@echo ""
+	@docker buildx inspect $(BUILDX_BUILDER) 2>/dev/null || echo "Builder '$(BUILDX_BUILDER)' not created. Run 'make docker-buildx-setup'"
+

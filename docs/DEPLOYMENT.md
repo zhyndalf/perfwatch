@@ -8,7 +8,7 @@ This guide walks you through deploying PerfWatch on a bare Linux machine from sc
 
 ### System Requirements
 - **Operating System**: Linux (Ubuntu 20.04+, Debian 11+, or similar)
-- **Architecture**: x86_64
+- **Architecture**: x86_64 (amd64) or ARM64 (aarch64)
 - **RAM**: Minimum 2GB, recommended 4GB+
 - **Disk**: Minimum 10GB free space
 - **Network**: Internet access for initial setup
@@ -16,6 +16,105 @@ This guide walks you through deploying PerfWatch on a bare Linux machine from sc
 
 ### Why Linux Only?
 PerfWatch uses Linux `perf_events` for hardware performance counters (IPC, cache misses, etc.). This feature is not available on Windows or macOS.
+
+---
+
+## ARM64 Deployment (Raspberry Pi, AWS Graviton, etc.)
+
+PerfWatch fully supports ARM64 Linux systems including:
+- **Raspberry Pi 4/5** (64-bit Raspberry Pi OS)
+- **AWS Graviton** instances (EC2 t4g, c7g, m7g, etc.)
+- **Apple Silicon** with Linux VMs (UTM, Parallels)
+- **NVIDIA Jetson** (Nano, Xavier, Orin)
+- **Oracle Cloud** Ampere A1 instances
+
+### Using Pre-built Multi-Arch Images
+
+The easiest way to deploy on ARM64 is using our pre-built images from GitHub Container Registry:
+
+```bash
+# Images auto-detect your architecture (amd64 or arm64)
+docker pull ghcr.io/zhyndalf/perfwatch-backend:latest
+docker pull ghcr.io/zhyndalf/perfwatch-frontend:latest
+```
+
+Or simply use docker compose - it will pull the correct architecture automatically:
+
+```bash
+git clone https://github.com/zhyndalf/perfwatch.git
+cd perfwatch
+docker compose up -d
+```
+
+### Building Locally on ARM64
+
+Building on ARM64 hardware works exactly the same as x86_64:
+
+```bash
+# Clone repository
+git clone https://github.com/zhyndalf/perfwatch.git
+cd perfwatch
+
+# Build and start (same commands as x86_64)
+docker compose build
+docker compose up -d
+docker compose exec backend alembic upgrade head
+```
+
+### ARM64-Specific Notes
+
+1. **perf_events Support**: Fully supported on ARM64 (uses syscall 241 for aarch64)
+   - May require `CONFIG_ARM_PMU=y` in kernel config
+   - Available counters vary by SoC (Cortex-A72, A76, X1, etc.)
+   - Raspberry Pi 4/5 has full PMU support
+
+2. **CPU Temperature**: Depends on device tree sensors
+   - Works on Raspberry Pi with standard kernel
+   - May show "N/A" on some ARM boards without thermal sensors
+
+3. **Performance Expectations**: Similar to x86_64
+   - IPC values differ due to ARM architecture characteristics
+   - Cache sizes/levels vary by processor
+   - All psutil-based metrics work identically
+
+4. **Docker Requirements**:
+   - Docker 20.10+ recommended
+   - Use 64-bit OS (arm64/aarch64), not 32-bit (armv7l)
+
+### Raspberry Pi Specific Setup
+
+```bash
+# Install Docker on Raspberry Pi OS (64-bit)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Reboot or re-login, then:
+cd perfwatch
+docker compose up -d
+```
+
+### Verifying ARM64 Support
+
+```bash
+# Check your architecture
+uname -m
+# Expected: aarch64
+
+# Verify container is running ARM64
+docker compose exec backend uname -m
+# Expected: aarch64
+
+# Test perf_events detection
+docker compose exec backend python -c "
+from app.collectors.perf_events import _get_arch, _SYSCALL_PERF_EVENT_OPEN
+arch = _get_arch()
+syscall = _SYSCALL_PERF_EVENT_OPEN.get(arch)
+print(f'Architecture: {arch}')
+print(f'Syscall number: {syscall}')
+"
+# Expected: Architecture: aarch64, Syscall number: 241
+```
 
 ---
 
