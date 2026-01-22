@@ -162,16 +162,15 @@ class User(Base):
     "write_count": 250
   },
   "perf_events": {
-    "cycles": 5000000000,
-    "instructions": 9000000000,
-    "ipc": 1.8,
-    "cache_references": 100000,
-    "cache_misses": 5000,
-    "cache_miss_percent": 5.0,
-    "branch_instructions": 2000000,
-    "branch_misses": 100000,
-    "branch_miss_percent": 5.0,
-    "dtlb_load_misses": 50000
+    "available": true,
+    "cpu_cores": "all",
+    "interval_ms": 1000,
+    "sample_time": "1.000123",
+    "events": {
+      "cycles": { "value": 5000000000, "unit": null },
+      "instructions": { "value": 9000000000, "unit": null },
+      "cpu-clock": { "value": 1000.12, "unit": "msec" }
+    }
   },
   "memory_bandwidth": {
     "pgpgin_per_sec": 100.0,
@@ -230,13 +229,13 @@ INSERT INTO config (key, value)
 VALUES
   ('sampling', '{"interval_seconds": 5}'),
   ('retention', '{"days": 30, "archive_enabled": true}'),
-  ('features', '{"perf_events_enabled": true}');
+  ('features', '{"perf_events_enabled": true, "perf_events_cpu_cores": "all", "perf_events_interval_ms": 1000}');
 ```
 
 **Common Keys:**
 - `sampling`: Sampling interval configuration
 - `retention`: Retention policy settings
-- `features`: Feature flags (perf_events, etc.)
+- `features`: Feature flags (perf_events enabled + perf stat config)
 - `system_info`: System information (hostname, CPU count, memory)
 
 **SQLAlchemy Model:**

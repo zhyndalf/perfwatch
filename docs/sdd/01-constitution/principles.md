@@ -43,12 +43,12 @@
 **Principle**: If a metric isn't available, show what we can; never crash.
 
 **Rationale**:
-- Not all systems support all metrics (especially perf_events)
+- Not all systems support all metrics (especially perf stat)
 - A partially working dashboard is better than an error page
 - Hardware variations are expected
 
 **Examples**:
-- perf_events fail? Show "N/A" for those metrics
+- perf stat fails? Show "N/A" for those metrics
 - Temperature unavailable? Hide that section
 - Network interface disappears? Remove from display
 
@@ -61,7 +61,7 @@
 **Rationale**:
 - Consistent environment across all developers
 - Easy setup with `docker-compose up`
-- Privileged container enables perf_events access
+- Privileged container enables perf stat access
 - PostgreSQL managed automatically
 
 **Examples**:
@@ -103,7 +103,7 @@
 
 | Excluded | Reason |
 |----------|--------|
-| Windows | perf_events is Linux-only |
+| Windows | perf stat is Linux-only |
 | Remote monitoring | Scope creep, security complexity |
 | Multiple users | Overkill for local tool |
 | Custom metrics | Fixed metric set is sufficient |
@@ -142,7 +142,7 @@
 ### Data Flow
 
 ```
-Linux Kernel → psutil/perf_events → Collectors → Aggregator → WebSocket → Frontend
+Linux Kernel → psutil/perf stat → Collectors → Aggregator → WebSocket → Frontend
                                           ↓
                                     PostgreSQL (history)
 ```
@@ -157,7 +157,7 @@ Linux Kernel → psutil/perf_events → Collectors → Aggregator → WebSocket 
 - Session timeout: 24 hours
 
 ### Container Security
-- Runs as root inside container (required for perf_events)
+- Runs as root inside container (required for perf stat)
 - `--privileged` flag required for hardware counters
 - Network: localhost only by default
 - No external API access

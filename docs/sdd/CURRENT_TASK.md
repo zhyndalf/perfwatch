@@ -16,9 +16,9 @@ Final polish complete. All planned tasks finished.
 
 - **Phase 1 Complete (5/5)**: Foundation - SDD, Docker, Database, Auth, Vue Base
 - **Phase 2 Complete (7/7)**: Core Metrics - Collectors, WebSocket, Dashboard UI
-- **Phase 3 Complete (5/5)**: Advanced Metrics - Perf Events, Cache, CPU Perf, Memory Bandwidth, Advanced Dashboard
-- T017 Advanced Dashboard: ECharts visualization for all metrics, graceful degradation for perf_events
-- Fixed perf_events collector to correctly report unavailable when cycles/instructions not accessible
+- **Phase 3 Complete (5/5)**: Advanced Metrics - Perf Events (perf stat), Cache/TLB, CPU Perf, Memory Bandwidth, Advanced Dashboard
+- T017 Advanced Dashboard: ECharts visualization for all metrics, graceful degradation for perf stat
+- Fixed perf_events collector to report unavailable when events are missing/unsupported
 - T019 Comparison View: compare endpoint + overlay charts + summary stats
 - T020 Data Retention: API endpoints + cleanup service + Settings UI controls + periodic cleanup
 - T021 Settings Page: system info + config API + settings UI
@@ -91,16 +91,16 @@ None currently.
 - **Phase 2 Core Metrics Complete!**
 
 **Session 8** (2026-01-20):
-- T013 COMPLETED: Perf Events Setup - Linux perf_events with ctypes, cycles/instructions/IPC metrics
-- T014 COMPLETED: Cache Metrics - L1D and LLC cache miss rates added
+- T013 COMPLETED: Perf Events Setup - perf stat streaming + raw counters
+- T014 COMPLETED: Cache Metrics - L1/LLC cache counters added
 
 **Session 9** (2026-01-20):
-- T015 COMPLETED: CPU Perf Metrics - Branch prediction and DTLB metrics added
+- T015 COMPLETED: CPU Perf Metrics - Branch and TLB counters added
 - T016 COMPLETED: Memory Bandwidth - /proc/vmstat page I/O monitoring
 
 **Session 10** (2026-01-20):
-- T017 COMPLETED: Advanced Dashboard - ECharts for perf_events & memory bandwidth
-- Fixed perf_events collector availability check (requires cycles+instructions)
+- T017 COMPLETED: Advanced Dashboard - ECharts for perf stat & memory bandwidth
+- Fixed perf_events collector availability check (missing/unsupported events)
 - **Phase 3 Advanced Metrics Complete!**
 
 **Session 11** (2026-01-21):

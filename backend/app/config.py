@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     BACKGROUND_COLLECTION_ENABLED: bool = True
     RETENTION_CLEANUP_ENABLED: bool = True
     RETENTION_CLEANUP_INTERVAL_MINUTES: int = 60
+    PERF_EVENTS_ENABLED: bool = True
+    PERF_EVENTS_INTERVAL_MS: int = 1000
+    PERF_EVENTS_CPU_CORES: str = "all"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

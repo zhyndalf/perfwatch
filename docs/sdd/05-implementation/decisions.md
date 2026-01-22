@@ -86,26 +86,26 @@ Use PostgreSQL JSONB column for flexible metric data storage.
 
 ---
 
-## ADR-004: Privileged Container for perf_events
+## ADR-004: Privileged Container for perf stat
 
 **Date**: 2025-01-18
 **Status**: Accepted
 
 ### Context
-perf_events requires elevated privileges to access hardware counters.
+perf stat requires elevated privileges and PMU access to read hardware counters.
 
 ### Decision
 Run backend container with `--privileged` flag.
 
 ### Rationale
-- Simplest way to enable perf_events
+- Simplest way to enable perf stat
 - Acceptable for local-only deployment
 - Alternative (capabilities) is complex
 
 ### Alternatives Considered
 - Linux capabilities (CAP_PERFMON) - complex setup
 - Running on host - defeats Docker purpose
-- Skipping perf_events - loses key feature
+- Skipping perf stat - loses key feature
 
 ### Security Notes
 - Only for local use

@@ -211,6 +211,18 @@
             </span>
           </div>
           <div class="flex items-center justify-between">
+            <span>Perf Events Cores</span>
+            <span class="text-white">
+              {{ perfEventsCpuCores || 'all' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>Perf Events Interval</span>
+            <span class="text-white">
+              {{ perfEventsIntervalMs ? `${perfEventsIntervalMs}ms` : 'N/A' }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
             <span>Sampling Interval</span>
             <span class="text-white">
               {{ samplingIntervalSeconds ? `${samplingIntervalSeconds}s` : 'N/A' }}
@@ -253,6 +265,27 @@
                 class="h-4 w-4 rounded border-dark-border text-accent-cyan focus:ring-accent-cyan"
               />
               <label for="perfEventsEnabled" class="text-gray-300 text-sm">Enable perf events</label>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Perf Events CPU Cores (e.g., 0-3,5 or all)</label>
+              <input
+                v-model="perfEventsCpuCores"
+                type="text"
+                placeholder="all"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-gray-300 text-sm mb-2">Perf Events Interval (ms)</label>
+              <input
+                v-model.number="perfEventsIntervalMs"
+                type="number"
+                min="100"
+                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-accent-cyan transition-colors"
+              />
             </div>
           </div>
 
@@ -313,6 +346,8 @@ const {
   success: configSuccess,
   samplingIntervalSeconds,
   perfEventsEnabled,
+  perfEventsCpuCores,
+  perfEventsIntervalMs,
   appVersion,
 } = storeToRefs(configStore)
 
@@ -392,6 +427,22 @@ async function saveConfig() {
   if (!samplingIntervalSeconds.value || samplingIntervalSeconds.value < 1) {
     configStore.error = 'Sampling interval must be at least 1 second'
     return
+  }
+  if (perfEventsIntervalMs.value && perfEventsIntervalMs.value < 100) {
+    configStore.error = 'Perf events interval must be at least 100ms'
+    return
+  }
+  if (perfEventsCpuCores.value !== null && perfEventsCpuCores.value !== undefined) {
+    const coreValue = perfEventsCpuCores.value.trim()
+    const corePattern = /^(all|\d+([,-]\d+)*)$/i
+    if (coreValue === '') {
+      perfEventsCpuCores.value = 'all'
+    } else if (!corePattern.test(coreValue)) {
+      configStore.error = 'Perf events CPU cores must be like 0-3,5 or all'
+      return
+    } else {
+      perfEventsCpuCores.value = coreValue
+    }
   }
   await configStore.updateConfig()
 }

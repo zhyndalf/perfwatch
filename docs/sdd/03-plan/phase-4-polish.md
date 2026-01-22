@@ -222,7 +222,7 @@ After Phase 4 is complete:
 - [ ] DB queries < 500ms
 
 ## Reliability
-- [ ] Graceful degradation for perf_events
+- [ ] Graceful degradation for perf stat
 - [ ] Handles network issues
 - [ ] Recovers from DB connection loss
 - [ ] No unhandled exceptions

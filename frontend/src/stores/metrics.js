@@ -12,12 +12,6 @@ function createHistory() {
     networkDown: [],
     diskRead: [],
     diskWrite: [],
-    // Advanced metrics - perf_events
-    ipc: [],
-    l1dMissRate: [],
-    llcMissRate: [],
-    branchMissRate: [],
-    dtlbMissRate: [],
     // Advanced metrics - memory_bandwidth
     pageIn: [],
     pageOut: [],
@@ -176,14 +170,6 @@ export const useMetricsStore = defineStore('metrics', {
       history.networkDown.push(data.network?.bytes_recv_per_sec ?? null)
       history.diskRead.push(data.disk?.io?.read_bytes_per_sec ?? null)
       history.diskWrite.push(data.disk?.io?.write_bytes_per_sec ?? null)
-
-      // Advanced metrics - perf_events (convert rates to percentages for display)
-      const perf = data.perf_events
-      history.ipc.push(perf?.ipc ?? null)
-      history.l1dMissRate.push(perf?.l1d_miss_rate != null ? perf.l1d_miss_rate * 100 : null)
-      history.llcMissRate.push(perf?.llc_miss_rate != null ? perf.llc_miss_rate * 100 : null)
-      history.branchMissRate.push(perf?.branch_miss_rate != null ? perf.branch_miss_rate * 100 : null)
-      history.dtlbMissRate.push(perf?.dtlb_miss_rate != null ? perf.dtlb_miss_rate * 100 : null)
 
       // Advanced metrics - memory_bandwidth (KB/sec)
       const membw = data.memory_bandwidth

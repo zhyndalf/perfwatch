@@ -153,11 +153,11 @@ Total                  [██████████] 100% (22/22 tasks)
 | 2026-01-19 | T010 | Disk Collector - Partitions and I/O, 125 total tests |
 | 2026-01-19 | T011 | WebSocket Streaming - Real-time metrics endpoint, 131 total tests |
 | 2026-01-20 | T012 | Dashboard UI - ECharts, WebSocket integration, responsive layout ✅ Phase 2 Complete |
-| 2026-01-20 | T013 | Perf Events Setup - Linux perf_events integration with ctypes, 157 total tests |
-| 2026-01-20 | T014 | Cache Metrics - L1D and LLC cache miss rates, 166 total tests |
+| 2026-01-20 | T013 | Perf Events Setup - perf stat integration, 157 total tests |
+| 2026-01-20 | T014 | Cache Metrics - L1/LLC cache counters, 166 total tests |
 | 2026-01-20 | T015 | CPU Perf Metrics - Branch prediction and DTLB metrics, 178 total tests |
 | 2026-01-20 | T016 | Memory Bandwidth - /proc/vmstat page I/O monitoring, 203 total tests |
-| 2026-01-20 | T017 | Advanced Dashboard - ECharts for perf_events & memory I/O, graceful degradation ✅ Phase 3 Complete |
+| 2026-01-20 | T017 | Advanced Dashboard - ECharts for perf stat & memory I/O, graceful degradation ✅ Phase 3 Complete |
 | 2026-01-20 | T018 | History Storage - Persist metrics, history API, downsampling ✅ Phase 4 started |
 | 2026-01-20 | T019 | Comparison View - Compare API, overlay charts, summary stats |
 | 2026-01-20 | T020 | Data Retention - Policy API, cleanup service, Settings UI, periodic cleanup |

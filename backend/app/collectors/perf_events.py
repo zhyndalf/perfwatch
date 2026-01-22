@@ -1,578 +1,316 @@
-"""Linux perf_events collector for hardware performance counters.
+"""Perf stat-based collector for hardware performance counters.
 
-Uses ctypes to directly call the perf_event_open syscall for collecting
-CPU cycles and instructions, enabling IPC (Instructions Per Cycle) calculation.
-
-This collector gracefully degrades when perf_events is unavailable (e.g.,
-in containers without proper privileges or on systems without perf support).
+This collector uses `perf stat -I` to stream counter values at a fixed interval.
+It parses perf's CSV output and returns the latest interval snapshot.
 """
 
-import ctypes
-import ctypes.util
-import errno
+import asyncio
 import logging
 import os
-from typing import Any, Dict, List, Optional
+import re
+import shutil
+from typing import Any, Dict, Optional, Tuple
 
 from app.collectors.base import BaseCollector
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Syscall number for perf_event_open (architecture-dependent)
-# x86_64: 298, aarch64: 241
-_SYSCALL_PERF_EVENT_OPEN = {
-    "x86_64": 298,
-    "aarch64": 241,
-    "arm": 364,
-}
+PERF_STAT_EVENTS = [
+    "cpu-clock",
+    "context-switches",
+    "cpu-migrations",
+    "page-faults",
+    "cycles",
+    "instructions",
+    "branches",
+    "branch-misses",
+    "L1-dcache-loads",
+    "L1-dcache-load-misses",
+    "LLC-loads",
+    "LLC-load-misses",
+    "L1-icache-loads",
+    "dTLB-loads",
+    "dTLB-load-misses",
+    "iTLB-loads",
+    "iTLB-load-misses",
+]
 
-# perf_event_open constants from linux/perf_event.h
-PERF_TYPE_HARDWARE = 0
-PERF_TYPE_HW_CACHE = 3
-
-# Hardware event types
-PERF_COUNT_HW_CPU_CYCLES = 0
-PERF_COUNT_HW_INSTRUCTIONS = 1
-
-# Hardware cache event IDs (perf_hw_cache_id)
-PERF_COUNT_HW_CACHE_L1D = 0   # L1 Data cache
-PERF_COUNT_HW_CACHE_L1I = 1   # L1 Instruction cache
-PERF_COUNT_HW_CACHE_LL = 2    # Last Level Cache (L3 or L2 depending on CPU)
-PERF_COUNT_HW_CACHE_DTLB = 3  # Data TLB
-PERF_COUNT_HW_CACHE_ITLB = 4  # Instruction TLB
-PERF_COUNT_HW_CACHE_BPU = 5   # Branch Prediction Unit
-
-# Hardware cache operation IDs (perf_hw_cache_op_id)
-PERF_COUNT_HW_CACHE_OP_READ = 0
-PERF_COUNT_HW_CACHE_OP_WRITE = 1
-PERF_COUNT_HW_CACHE_OP_PREFETCH = 2
-
-# Hardware cache operation result IDs (perf_hw_cache_op_result_id)
-PERF_COUNT_HW_CACHE_RESULT_ACCESS = 0
-PERF_COUNT_HW_CACHE_RESULT_MISS = 1
-
-# perf_event_open flags
-PERF_FLAG_FD_CLOEXEC = 8
+_UNSUPPORTED_VALUES = {"<not supported>", "<not counted>"}
+_CPU_LIST_PATTERN = re.compile(r"^(all|\d+([,-]\d+)*)$")
 
 
-def encode_cache_config(cache_id: int, op_id: int, result_id: int) -> int:
-    """Encode a hardware cache event configuration.
+def normalize_cpu_list(value: Optional[str]) -> Optional[str]:
+    """Normalize CPU core list for perf stat.
 
-    Cache events use a 64-bit config encoded as:
-    config = cache_id | (op_id << 8) | (result_id << 16)
+    Returns None for "all" or empty values.
+    """
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed or trimmed.lower() == "all":
+        return None
+    return trimmed
 
-    Args:
-        cache_id: Cache level (L1D, L1I, LL, etc.)
-        op_id: Operation type (READ, WRITE, PREFETCH)
-        result_id: Result type (ACCESS, MISS)
+
+def parse_perf_stat_line(line: str) -> Optional[Tuple[str, str, Optional[float], Optional[str], bool]]:
+    """Parse a single perf stat CSV line.
 
     Returns:
-        Encoded config value for perf_event_open
+        Tuple of (time, event, value, unit, supported)
     """
-    return cache_id | (op_id << 8) | (result_id << 16)
+    if not line:
+        return None
 
+    line = line.strip()
+    if not line or line.startswith("#"):
+        return None
 
-# Pre-computed cache event configs
-CACHE_L1D_READ_ACCESS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_L1D,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_ACCESS
-)
-CACHE_L1D_READ_MISS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_L1D,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_MISS
-)
-CACHE_LL_READ_ACCESS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_LL,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_ACCESS
-)
-CACHE_LL_READ_MISS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_LL,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_MISS
-)
+    parts = [part.strip() for part in line.split(",")]
+    if len(parts) < 4:
+        return None
 
-# Branch prediction unit cache events
-CACHE_BPU_READ_ACCESS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_BPU,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_ACCESS
-)
-CACHE_BPU_READ_MISS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_BPU,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_MISS
-)
+    time_value = parts[0]
+    raw_value = parts[1]
+    unit = parts[2] or None
+    event = parts[3]
 
-# Data TLB cache events
-CACHE_DTLB_READ_ACCESS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_DTLB,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_ACCESS
-)
-CACHE_DTLB_READ_MISS = encode_cache_config(
-    PERF_COUNT_HW_CACHE_DTLB,
-    PERF_COUNT_HW_CACHE_OP_READ,
-    PERF_COUNT_HW_CACHE_RESULT_MISS
-)
+    if event not in PERF_STAT_EVENTS:
+        return None
 
+    if raw_value in _UNSUPPORTED_VALUES:
+        return time_value, event, None, unit, False
 
-class PerfEventAttr(ctypes.Structure):
-    """Structure matching struct perf_event_attr from linux/perf_event.h.
+    try:
+        if "." in raw_value or "e" in raw_value or "E" in raw_value:
+            value = float(raw_value)
+        else:
+            value = int(raw_value)
+    except ValueError:
+        return time_value, event, None, unit, False
 
-    This is a simplified version with only the fields we need.
-    The full structure is much larger, but the kernel only reads
-    up to the 'size' field we specify.
-    """
-
-    _fields_ = [
-        ("type", ctypes.c_uint32),          # Type of event
-        ("size", ctypes.c_uint32),          # Size of this structure
-        ("config", ctypes.c_uint64),        # Type-specific configuration
-        ("sample_period", ctypes.c_uint64),  # Period or frequency
-        ("sample_type", ctypes.c_uint64),   # What data to record
-        ("read_format", ctypes.c_uint64),   # How to read data
-        ("flags", ctypes.c_uint64),         # Flags (disabled, inherit, etc.)
-        # Padding to match kernel structure size (at least 80 bytes for basic ops)
-        ("_pad1", ctypes.c_uint64),
-        ("_pad2", ctypes.c_uint64),
-        ("_pad3", ctypes.c_uint64),
-        ("_pad4", ctypes.c_uint64),
-        ("_pad5", ctypes.c_uint64),
-    ]
-
-
-def _get_arch() -> str:
-    """Get the current architecture for syscall number lookup."""
-    import platform
-    machine = platform.machine()
-    if machine in ("x86_64", "AMD64"):
-        return "x86_64"
-    elif machine in ("aarch64", "arm64"):
-        return "aarch64"
-    elif machine.startswith("arm"):
-        return "arm"
-    return machine
-
-
-def _get_libc():
-    """Get libc for syscall access."""
-    libc_name = ctypes.util.find_library("c")
-    if libc_name:
-        return ctypes.CDLL(libc_name, use_errno=True)
-    # Fallback to direct loading
-    return ctypes.CDLL("libc.so.6", use_errno=True)
+    return time_value, event, value, unit, True
 
 
 class PerfEventsCollector(BaseCollector):
-    """Collector for Linux perf_events hardware counters.
-
-    Collects:
-    - CPU cycles count
-    - Instructions count
-    - IPC (Instructions Per Cycle)
-    - L1 data cache references and misses
-    - LLC (Last Level Cache) references and misses
-    - Branch prediction references and misses (mispredicts)
-    - Data TLB references and misses
-    - Miss rates for all cache-like counters
-
-    This collector uses the Linux perf_events interface via ctypes
-    to read hardware performance counters without external dependencies.
-
-    When perf_events is unavailable (unprivileged container, missing
-    kernel support, or restricted by perf_event_paranoid), the collector
-    gracefully returns {"available": False}.
-
-    Attributes:
-        name: Collector identifier ('perf_events')
-        enabled: Whether the collector is active
-    """
+    """Collector using perf stat for hardware performance counters."""
 
     name = "perf_events"
 
     def __init__(self, enabled: bool = True):
-        """Initialize the perf events collector.
-
-        Args:
-            enabled: Whether this collector should be active
-        """
         super().__init__(enabled=enabled)
+        self._proc: Optional[asyncio.subprocess.Process] = None
+        self._reader_task: Optional[asyncio.Task] = None
+        self._latest: Optional[Dict[str, Any]] = None
         self._available: Optional[bool] = None
-        self._fds: Dict[str, int] = {}  # event_name -> file descriptor
-        self._libc = None
-        self._syscall_nr: Optional[int] = None
-        self._initialized = False
+        self._last_error: Optional[str] = None
+        self._unsupported_events: set[str] = set()
+        self._current_time: Optional[str] = None
+        self._current_events: Dict[str, Dict[str, Any]] = {}
+        self._lock = asyncio.Lock()
+        self._start_lock = asyncio.Lock()
+        self._config_signature: Optional[Tuple[Optional[str], int]] = None
 
-    def _initialize(self) -> bool:
-        """Initialize the perf_events infrastructure.
+    def _get_config(self) -> Tuple[Optional[str], int]:
+        cpu_cores = normalize_cpu_list(getattr(settings, "PERF_EVENTS_CPU_CORES", None))
+        interval_ms = int(getattr(settings, "PERF_EVENTS_INTERVAL_MS", 1000))
+        return cpu_cores, interval_ms
 
-        Returns:
-            True if initialization successful, False otherwise.
-        """
-        if self._initialized:
-            return self._available or False
+    def _build_command(self, cpu_cores: Optional[str], interval_ms: int) -> list[str]:
+        cmd = [
+            "perf",
+            "stat",
+            "-ddd",
+            "-I",
+            str(interval_ms),
+            "-x",
+            ",",
+            "--no-big-num",
+            "--log-fd",
+            "1",
+            "-a",
+            "-e",
+            ",".join(PERF_STAT_EVENTS),
+        ]
+        if cpu_cores is not None:
+            cmd.extend(["-C", cpu_cores])
+        return cmd
 
-        self._initialized = True
-
-        try:
-            # Get architecture-specific syscall number
-            arch = _get_arch()
-            self._syscall_nr = _SYSCALL_PERF_EVENT_OPEN.get(arch)
-
-            if self._syscall_nr is None:
-                logger.debug(f"perf_events: Unsupported architecture: {arch}")
-                self._available = False
-                return False
-
-            # Get libc for syscall
-            self._libc = _get_libc()
-
-            # Check if perf_events is available
-            if not self._check_paranoid():
-                self._available = False
-                return False
-
-            # Try to open events
-            if not self._open_events():
-                self._available = False
-                return False
-
-            self._available = True
-            return True
-
-        except Exception as e:
-            logger.debug(f"perf_events: Initialization failed: {e}")
+    async def _start_process(self, cpu_cores: Optional[str], interval_ms: int) -> None:
+        if shutil.which("perf") is None:
             self._available = False
-            return False
+            self._last_error = "perf binary not found"
+            return
 
-    def _check_paranoid(self) -> bool:
-        """Check if perf_events is potentially available via paranoid setting.
+        env = os.environ.copy()
+        env["LC_ALL"] = "C"
 
-        Returns:
-            True if perf_events might be available, False otherwise.
-        """
-        paranoid_path = "/proc/sys/kernel/perf_event_paranoid"
-
+        cmd = self._build_command(cpu_cores, interval_ms)
         try:
-            if not os.path.exists(paranoid_path):
-                logger.debug("perf_events: /proc/sys/kernel/perf_event_paranoid not found")
-                return False
-
-            with open(paranoid_path, "r") as f:
-                paranoid_value = int(f.read().strip())
-
-            # paranoid values:
-            # -1: Allow all users
-            #  0: Allow non-root users to read kernel-level data
-            #  1: Allow non-root users to read user-level data (default on many systems)
-            #  2: Only root can use perf
-            #  3: No perf_events at all (some hardened systems)
-            logger.debug(f"perf_events: paranoid level = {paranoid_value}")
-
-            # We need level 2 or lower for basic hardware counters
-            # But the actual permission also depends on capabilities
-            # So we'll try the syscall regardless and handle EPERM
-            return True
-
-        except Exception as e:
-            logger.debug(f"perf_events: Failed to check paranoid: {e}")
-            return False
-
-    def _perf_event_open(
-        self,
-        event_type: int,
-        event_config: int,
-        pid: int = 0,
-        cpu: int = -1,
-        group_fd: int = -1,
-        flags: int = PERF_FLAG_FD_CLOEXEC,
-    ) -> int:
-        """Call the perf_event_open syscall.
-
-        Args:
-            event_type: Type of event (PERF_TYPE_HARDWARE, etc.)
-            event_config: Event-specific configuration
-            pid: Process ID (0 = current process, -1 = all processes)
-            cpu: CPU to monitor (-1 = any CPU)
-            group_fd: File descriptor of group leader (-1 = new group)
-            flags: Flags for the syscall
-
-        Returns:
-            File descriptor on success, -1 on failure.
-        """
-        attr = PerfEventAttr()
-        attr.type = event_type
-        attr.size = ctypes.sizeof(PerfEventAttr)
-        attr.config = event_config
-        attr.flags = 0  # We're not setting disabled bit, etc.
-
-        # Call syscall directly
-        fd = self._libc.syscall(
-            self._syscall_nr,
-            ctypes.byref(attr),
-            pid,
-            cpu,
-            group_fd,
-            flags,
-        )
-
-        if fd < 0:
-            err = ctypes.get_errno()
-            logger.debug(
-                f"perf_event_open failed: errno={err} ({errno.errorcode.get(err, 'UNKNOWN')})"
+            self._proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                env=env,
             )
+        except FileNotFoundError:
+            self._available = False
+            self._last_error = "perf binary not found"
+            return
+        except Exception as exc:
+            self._available = False
+            self._last_error = f"failed to start perf stat: {exc}"
+            return
 
-        return fd
+        self._available = True
+        self._unsupported_events = set()
+        self._current_time = None
+        self._current_events = {}
+        self._reader_task = asyncio.create_task(self._read_loop())
 
-    def _open_events(self) -> bool:
-        """Open file descriptors for the events we want to monitor.
+    async def _stop_process(self) -> None:
+        if self._reader_task is not None:
+            self._reader_task.cancel()
+            try:
+                await self._reader_task
+            except asyncio.CancelledError:
+                pass
+            self._reader_task = None
 
-        Returns:
-            True if cycles AND instructions were successfully opened.
-            These are required for IPC calculation, which is the core metric.
-        """
-        # Hardware events (cycles, instructions) - REQUIRED for meaningful data
-        hw_events = {
-            "cycles": PERF_COUNT_HW_CPU_CYCLES,
-            "instructions": PERF_COUNT_HW_INSTRUCTIONS,
-        }
-
-        for name, config in hw_events.items():
-            fd = self._perf_event_open(PERF_TYPE_HARDWARE, config)
-            if fd >= 0:
-                self._fds[name] = fd
-                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
-            else:
-                logger.debug(f"perf_events: Failed to open {name} counter")
-
-        # Cache events (L1D and LLC)
-        cache_events = {
-            "l1d_references": CACHE_L1D_READ_ACCESS,
-            "l1d_misses": CACHE_L1D_READ_MISS,
-            "llc_references": CACHE_LL_READ_ACCESS,
-            "llc_misses": CACHE_LL_READ_MISS,
-        }
-
-        for name, config in cache_events.items():
-            fd = self._perf_event_open(PERF_TYPE_HW_CACHE, config)
-            if fd >= 0:
-                self._fds[name] = fd
-                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
-            else:
-                logger.debug(f"perf_events: Failed to open {name} counter")
-
-        # Branch prediction unit events
-        bpu_events = {
-            "branch_references": CACHE_BPU_READ_ACCESS,
-            "branch_misses": CACHE_BPU_READ_MISS,
-        }
-
-        for name, config in bpu_events.items():
-            fd = self._perf_event_open(PERF_TYPE_HW_CACHE, config)
-            if fd >= 0:
-                self._fds[name] = fd
-                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
-            else:
-                logger.debug(f"perf_events: Failed to open {name} counter")
-
-        # Data TLB events
-        dtlb_events = {
-            "dtlb_references": CACHE_DTLB_READ_ACCESS,
-            "dtlb_misses": CACHE_DTLB_READ_MISS,
-        }
-
-        for name, config in dtlb_events.items():
-            fd = self._perf_event_open(PERF_TYPE_HW_CACHE, config)
-            if fd >= 0:
-                self._fds[name] = fd
-                logger.debug(f"perf_events: Opened {name} counter (fd={fd})")
-            else:
-                logger.debug(f"perf_events: Failed to open {name} counter")
-
-        # Require cycles AND instructions for meaningful metrics (IPC calculation)
-        # Without these, perf_events isn't truly useful
-        has_core_counters = "cycles" in self._fds and "instructions" in self._fds
-        if not has_core_counters:
-            logger.info("perf_events: cycles/instructions unavailable - marking as unavailable")
-            # Close any partially opened fds
-            for name, fd in self._fds.items():
+        if self._proc is not None:
+            if self._proc.returncode is None:
+                self._proc.terminate()
                 try:
-                    os.close(fd)
-                except Exception:
-                    pass
-            self._fds.clear()
-            return False
+                    await asyncio.wait_for(self._proc.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    self._proc.kill()
+            self._proc = None
 
-        return True
+    async def _ensure_process(self, cpu_cores: Optional[str], interval_ms: int) -> None:
+        async with self._start_lock:
+            if self._proc is not None and self._proc.returncode is None:
+                return
+            await self._stop_process()
+            await self._start_process(cpu_cores, interval_ms)
 
-    def _read_counter(self, fd: int) -> Optional[int]:
-        """Read a counter value from a file descriptor.
+    async def _read_loop(self) -> None:
+        assert self._proc is not None
+        assert self._proc.stdout is not None
 
-        Args:
-            fd: File descriptor from perf_event_open
+        while True:
+            line = await self._proc.stdout.readline()
+            if not line:
+                break
 
-        Returns:
-            Counter value, or None on error.
-        """
-        try:
-            # Read 8 bytes (uint64_t counter value)
-            data = os.read(fd, 8)
-            if len(data) == 8:
-                return int.from_bytes(data, byteorder="little", signed=False)
-            return None
-        except Exception as e:
-            logger.debug(f"perf_events: Failed to read counter: {e}")
-            return None
+            try:
+                decoded = line.decode("utf-8", errors="ignore")
+            except Exception:
+                continue
 
-    def is_available(self) -> bool:
-        """Check if perf_events is available on this system.
+            parsed = parse_perf_stat_line(decoded)
+            if parsed is None:
+                continue
 
-        Returns:
-            True if perf_events can be used, False otherwise.
-        """
-        if self._available is None:
-            self._initialize()
-        return self._available or False
+            time_value, event, value, unit, supported = parsed
+
+            if self._current_time is None:
+                self._current_time = time_value
+
+            if time_value != self._current_time:
+                await self._finalize_sample()
+                self._current_time = time_value
+                self._current_events = {}
+
+            if not supported:
+                self._unsupported_events.add(event)
+
+            self._current_events[event] = {
+                "value": value,
+                "unit": unit,
+            }
+
+        await self._finalize_sample()
+        if self._available:
+            self._available = False
+            self._last_error = "perf stat stopped"
+
+    async def _finalize_sample(self) -> None:
+        if not self._current_time or not self._current_events:
+            return
+
+        cpu_cores, interval_ms = self._get_config()
+        missing = [event for event in PERF_STAT_EVENTS if event not in self._current_events]
+
+        events = dict(self._current_events)
+        for event in missing:
+            events[event] = {"value": None, "unit": None}
+
+        available = not missing and not self._unsupported_events
+        payload = {
+            "available": available,
+            "cpu_cores": cpu_cores or "all",
+            "interval_ms": interval_ms,
+            "sample_time": self._current_time,
+            "events": events,
+        }
+
+        if missing:
+            payload["missing_events"] = missing
+        if self._unsupported_events:
+            payload["unsupported_events"] = sorted(self._unsupported_events)
+
+        async with self._lock:
+            self._latest = payload
+            self._available = available
 
     async def collect(self) -> Dict[str, Any]:
-        """Collect hardware performance counters.
+        if not getattr(settings, "PERF_EVENTS_ENABLED", True):
+            await self._stop_process()
+            return {
+                "available": False,
+                "disabled": True,
+            }
 
-        Returns:
-            Dictionary containing:
-            - available: bool - Whether perf_events is available
-            - cycles: int - CPU cycles count (if available)
-            - instructions: int - Instructions count (if available)
-            - ipc: float - Instructions Per Cycle (if available)
-            - l1d_references: int - L1 data cache accesses (if available)
-            - l1d_misses: int - L1 data cache misses (if available)
-            - l1d_miss_rate: float - L1 miss rate (if available)
-            - llc_references: int - LLC accesses (if available)
-            - llc_misses: int - LLC misses (if available)
-            - llc_miss_rate: float - LLC miss rate (if available)
-            - branch_references: int - Branch predictions (if available)
-            - branch_misses: int - Branch mispredictions (if available)
-            - branch_miss_rate: float - Branch misprediction rate (if available)
-            - dtlb_references: int - Data TLB accesses (if available)
-            - dtlb_misses: int - Data TLB misses (if available)
-            - dtlb_miss_rate: float - Data TLB miss rate (if available)
-        """
-        # Check availability (will initialize if needed)
-        if not self.is_available():
-            return {"available": False}
+        cpu_cores, interval_ms = self._get_config()
+        config_signature = (cpu_cores, interval_ms)
 
-        # Read hardware counters
-        cycles = None
-        instructions = None
+        if self._config_signature != config_signature:
+            self._config_signature = config_signature
+            await self._stop_process()
 
-        if "cycles" in self._fds:
-            cycles = self._read_counter(self._fds["cycles"])
+        await self._ensure_process(cpu_cores, interval_ms)
 
-        if "instructions" in self._fds:
-            instructions = self._read_counter(self._fds["instructions"])
+        if self._available is False:
+            async with self._lock:
+                if self._latest is not None:
+                    payload = dict(self._latest)
+                    if self._last_error and "error" not in payload:
+                        payload["error"] = self._last_error
+                    return payload
+            return {
+                "available": False,
+                "cpu_cores": cpu_cores or "all",
+                "interval_ms": interval_ms,
+                "error": self._last_error,
+                "unsupported_events": sorted(self._unsupported_events),
+            }
 
-        # Calculate IPC
-        ipc = None
-        if cycles is not None and instructions is not None and cycles > 0:
-            ipc = instructions / cycles
+        async with self._lock:
+            if self._latest is None:
+                return {
+                    "available": True,
+                    "cpu_cores": cpu_cores or "all",
+                    "interval_ms": interval_ms,
+                    "events": {},
+                }
+            return dict(self._latest)
 
-        # Read cache counters
-        l1d_references = None
-        l1d_misses = None
-        llc_references = None
-        llc_misses = None
-
-        if "l1d_references" in self._fds:
-            l1d_references = self._read_counter(self._fds["l1d_references"])
-
-        if "l1d_misses" in self._fds:
-            l1d_misses = self._read_counter(self._fds["l1d_misses"])
-
-        if "llc_references" in self._fds:
-            llc_references = self._read_counter(self._fds["llc_references"])
-
-        if "llc_misses" in self._fds:
-            llc_misses = self._read_counter(self._fds["llc_misses"])
-
-        # Calculate cache miss rates
-        l1d_miss_rate = None
-        if l1d_references is not None and l1d_misses is not None and l1d_references > 0:
-            l1d_miss_rate = l1d_misses / l1d_references
-
-        llc_miss_rate = None
-        if llc_references is not None and llc_misses is not None and llc_references > 0:
-            llc_miss_rate = llc_misses / llc_references
-
-        # Read branch prediction counters
-        branch_references = None
-        branch_misses = None
-
-        if "branch_references" in self._fds:
-            branch_references = self._read_counter(self._fds["branch_references"])
-
-        if "branch_misses" in self._fds:
-            branch_misses = self._read_counter(self._fds["branch_misses"])
-
-        # Calculate branch misprediction rate
-        branch_miss_rate = None
-        if branch_references is not None and branch_misses is not None and branch_references > 0:
-            branch_miss_rate = branch_misses / branch_references
-
-        # Read Data TLB counters
-        dtlb_references = None
-        dtlb_misses = None
-
-        if "dtlb_references" in self._fds:
-            dtlb_references = self._read_counter(self._fds["dtlb_references"])
-
-        if "dtlb_misses" in self._fds:
-            dtlb_misses = self._read_counter(self._fds["dtlb_misses"])
-
-        # Calculate DTLB miss rate
-        dtlb_miss_rate = None
-        if dtlb_references is not None and dtlb_misses is not None and dtlb_references > 0:
-            dtlb_miss_rate = dtlb_misses / dtlb_references
-
-        return {
-            "available": True,
-            # CPU counters
-            "cycles": cycles,
-            "instructions": instructions,
-            "ipc": ipc,
-            # L1 data cache
-            "l1d_references": l1d_references,
-            "l1d_misses": l1d_misses,
-            "l1d_miss_rate": l1d_miss_rate,
-            # Last Level Cache
-            "llc_references": llc_references,
-            "llc_misses": llc_misses,
-            "llc_miss_rate": llc_miss_rate,
-            # Branch prediction
-            "branch_references": branch_references,
-            "branch_misses": branch_misses,
-            "branch_miss_rate": branch_miss_rate,
-            # Data TLB
-            "dtlb_references": dtlb_references,
-            "dtlb_misses": dtlb_misses,
-            "dtlb_miss_rate": dtlb_miss_rate,
-        }
-
-    def close(self) -> None:
-        """Close all open file descriptors."""
-        for name, fd in self._fds.items():
-            try:
-                os.close(fd)
-                logger.debug(f"perf_events: Closed {name} counter (fd={fd})")
-            except Exception as e:
-                logger.debug(f"perf_events: Failed to close {name}: {e}")
-        self._fds.clear()
+    async def close(self) -> None:
+        await self._stop_process()
+        self._latest = None
         self._available = None
-        self._initialized = False
-
-    def __del__(self):
-        """Clean up file descriptors on deletion."""
-        # Only close if we have real file descriptors (not mocked values in tests)
-        if hasattr(self, '_fds') and self._fds:
-            self.close()
+        self._last_error = None
+        self._unsupported_events = set()
+        self._current_time = None
+        self._current_events = {}
+        self._config_signature = None

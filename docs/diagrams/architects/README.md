@@ -45,7 +45,7 @@ The C4 model provides a hierarchical view of PerfWatch's architecture:
 **Simplicity First:**
 - Single-page dashboard (no customization)
 - Fixed 5s sampling interval
-- Linux-only (perf_events dependency)
+- Linux-only (perf stat + PMU dependency)
 
 **Docker First:**
 - All services containerized
@@ -55,7 +55,7 @@ The C4 model provides a hierarchical view of PerfWatch's architecture:
 **Graceful Degradation:**
 - Collectors return None for unavailable metrics
 - Frontend shows "N/A" for missing data
-- No crashes on missing perf_events
+- No crashes on missing perf stat
 
 ---
 

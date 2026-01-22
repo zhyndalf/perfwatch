@@ -19,7 +19,7 @@ flowchart TD
     Parallel --> Memory[MemoryCollector<br/>psutil.virtual_memory]
     Parallel --> Network[NetworkCollector<br/>psutil.net_io_counters]
     Parallel --> Disk[DiskCollector<br/>psutil.disk_io_counters]
-    Parallel --> Perf[PerfEventsCollector<br/>perf_event_open]
+    Parallel --> Perf[PerfEventsCollector<br/>perf stat]
     Parallel --> Bandwidth[MemoryBandwidthCollector<br/>/proc/vmstat]
 
     CPU --> CheckCPU{Success?}
@@ -42,7 +42,7 @@ flowchart TD
     CheckDisk -->|No| DiskNull[None]
 
     CheckPerf -->|Yes| PerfData[Perf Metrics]
-    CheckPerf -->|No| PerfNull[None No perf_events]
+    CheckPerf -->|No| PerfNull[None perf stat unavailable]
 
     CheckBand -->|Yes| BandData[Bandwidth Metrics]
     CheckBand -->|No| BandNull[None]

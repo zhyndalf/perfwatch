@@ -1,6 +1,6 @@
 # Phase 3: Advanced Metrics
 
-> perf_events integration for hardware performance counters
+> perf stat integration for hardware performance counters
 
 ---
 
@@ -29,102 +29,102 @@
 
 ## T013: Perf Events Setup {#t013}
 
-**Objective**: Set up perf_event_open wrapper and basic event reading.
+**Objective**: Set up perf stat streaming and basic event parsing.
 
 **Task File**: [T013-perf-events-setup.md](../04-tasks/phase-3/T013-perf-events-setup.md)
 
 **Deliverables**:
-- Python wrapper for `perf_event_open` syscall
-- Event configuration structures
-- Basic event reading (cycles, instructions)
-- Availability detection
-- Graceful fallback when unavailable
+- `perf stat -I` subprocess integration
+- CSV output parsing for supported events
+- Basic event collection (cycles, instructions, branches, cache/TLB events)
+- Configurable CPU cores + interval
+- Availability detection and graceful fallback
 
 **Key Challenges**:
-- System call interface from Python
-- Handling permission errors
-- CPU-specific event codes
+- perf permissions and PMU exposure (VMs, BIOS, kernel config)
+- Parsing perf stat CSV output reliably
+- Handling missing or unsupported events
 
 **Acceptance Criteria**:
-- [ ] Can open perf events successfully
-- [ ] Reads basic counters (cycles/instructions)
-- [ ] Detects when unavailable
-- [ ] Returns None gracefully on failure
+- [ ] perf stat starts successfully
+- [ ] Reads raw counters (cycles/instructions/etc.)
+- [ ] Detects missing or unsupported events
+- [ ] Returns `available: false` gracefully on failure
 
 ---
 
 ## T014: Cache Metrics {#t014}
 
-**Objective**: Collect cache miss metrics via perf_events.
+**Objective**: Collect cache and TLB counters via perf stat.
 
 **Task File**: [T014-cache-metrics.md](../04-tasks/phase-3/T014-cache-metrics.md)
 
 **Deliverables**:
-- L1 instruction cache miss collection
-- L1 data cache miss collection
-- L2 cache miss collection (if available)
-- L3/LLC cache miss collection
-- Miss rate calculations
+- L1 data cache load/miss counters
+- L1 instruction cache load counters
+- LLC load/miss counters
+- dTLB/iTLB load/miss counters
+- Raw counts only (no derived rates)
 
 **Key Challenges**:
-- Not all CPUs support all cache events
-- Event codes vary by CPU architecture
+- Not all CPUs/VMs expose cache/TLB events
+- perf stat event names vary by kernel/PMU
 - Need to handle unsupported events
 
 **Acceptance Criteria**:
-- [ ] L1-I cache misses collected
-- [ ] L1-D cache misses collected
-- [ ] LLC misses collected
-- [ ] Miss rates calculated correctly
+- [ ] L1 cache counters collected
+- [ ] LLC counters collected
+- [ ] TLB counters collected
+- [ ] Raw counts match perf stat output
 - [ ] Unsupported events handled gracefully
 
 ---
 
 ## T015: CPU Perf Metrics {#t015}
 
-**Objective**: Collect IPC and detailed CPU performance metrics.
+**Objective**: Collect CPU performance counters via perf stat.
 
 **Task File**: [T015-cpu-perf-metrics.md](../04-tasks/phase-3/T015-cpu-perf-metrics.md)
 
 **Deliverables**:
-- IPC calculation (instructions/cycles)
-- Branch prediction metrics (if available)
-- Interrupt counting
-- Context switch counting
+- cycles and instructions counters
+- Branch counters and misses
+- Context switch and migration counts
+- Page fault counts
 
 **Key Challenges**:
-- Accurate IPC calculation
-- Multiplexing when too many events
 - Per-core vs system-wide collection
+- Multiplexing if too many events requested
+- Matching perf stat output timing
 
 **Acceptance Criteria**:
-- [ ] IPC calculated and accurate
+- [ ] cycles/instructions/branches collected
 - [ ] Values match `perf stat` output
 - [ ] Handles event multiplexing
-- [ ] Integrates with existing CPU collector
+- [ ] Supports configurable core lists
 
 ---
 
 ## T016: Memory Bandwidth {#t016}
 
-**Objective**: Measure memory read/write bandwidth via IMC counters.
+**Objective**: Estimate memory activity via /proc/vmstat rates.
 
 **Task File**: [T016-memory-bandwidth.md](../04-tasks/phase-3/T016-memory-bandwidth.md)
 
 **Deliverables**:
-- IMC (Integrated Memory Controller) counter access
-- Read bandwidth calculation (MB/s)
-- Write bandwidth calculation (MB/s)
-- Total bandwidth reporting
+- Page in/out rates (pgpgin/pgpgout)
+- Swap in/out rates (pswpin/pswpout)
+- Page fault rates
+- Reported as KB/s or per-second counts
 
 **Key Challenges**:
-- IMC counters are CPU-specific
-- Requires uncore perf events
-- May need different approach for AMD vs Intel
+- Interpreting /proc/vmstat fields consistently
+- Sampling at consistent intervals
+- Avoiding divide-by-zero or missing fields
 
 **Acceptance Criteria**:
-- [ ] Read bandwidth measured
-- [ ] Write bandwidth measured
+- [ ] pgpgin/pgpgout rates computed
+- [ ] pswpin/pswpout rates computed
 - [ ] Values reasonable (sanity check)
 - [ ] Works on target system
 
@@ -137,15 +137,15 @@
 **Task File**: [T017-advanced-dashboard.md](../04-tasks/phase-3/T017-advanced-dashboard.md)
 
 **Deliverables**:
-- Cache performance card and chart
-- IPC display component
+- Perf counters grid/table
+- Perf event selector for history chart
 - Memory bandwidth display
 - "Unavailable" state UI
 - Integration with existing dashboard
 
 **Acceptance Criteria**:
-- [ ] Cache metrics displayed
-- [ ] IPC shown prominently
+- [ ] Perf counters displayed
+- [ ] History chart switches by perf event
 - [ ] Bandwidth visualized
 - [ ] Graceful UI when unavailable
 - [ ] No layout issues
@@ -172,47 +172,27 @@ Note: T014-T016 can be done in any order after T013.
 
 ## Technical Background
 
-### perf_event_open System Call
+### perf stat Command
 
-```c
-int perf_event_open(
-    struct perf_event_attr *attr,
-    pid_t pid,      // -1 for all processes
-    int cpu,        // -1 for all CPUs
-    int group_fd,   // -1 for new group
-    unsigned long flags
-);
+```bash
+perf stat -I <interval_ms> -x , --no-big-num -a -e <events> [-C <cores>]
 ```
 
-### Python Wrapper Approach
+**Notes:**
+- `-I` emits periodic samples at the requested interval.
+- `-x ,` emits CSV output for parsing.
+- `-C` limits collection to a CPU core list; omit for all cores.
 
-```python
-import ctypes
+### Output Parsing
 
-# Load libc
-libc = ctypes.CDLL('libc.so.6', use_errno=True)
+`perf stat` emits CSV lines in the form:
 
-# Define perf_event_attr structure
-class perf_event_attr(ctypes.Structure):
-    _fields_ = [
-        ('type', ctypes.c_uint32),
-        ('size', ctypes.c_uint32),
-        ('config', ctypes.c_uint64),
-        # ... more fields
-    ]
-
-# Make syscall
-fd = libc.syscall(298, ctypes.byref(attr), -1, cpu, -1, 0)
+```
+<time>,<value>,<unit>,<event>,...
 ```
 
-### Event Types
-
-| Type | Value | Description |
-|------|-------|-------------|
-| PERF_TYPE_HARDWARE | 0 | Generic hardware events |
-| PERF_TYPE_SOFTWARE | 1 | Software events |
-| PERF_TYPE_HW_CACHE | 3 | Hardware cache events |
-| PERF_TYPE_RAW | 4 | CPU-specific raw events |
+Samples are grouped by `<time>` to build a single snapshot. Missing or unsupported
+events mark the sample unavailable.
 
 ---
 
@@ -220,33 +200,28 @@ fd = libc.syscall(298, ctypes.byref(attr), -1, cpu, -1, 0)
 
 After Phase 3 is complete:
 
-1. **perf_events**: Working wrapper in Python
-2. **Cache Metrics**: L1/L2/L3 miss rates available
-3. **CPU Perf**: IPC and cycles displayed
-4. **Memory Bandwidth**: Read/write MB/s shown
+1. **perf_events**: perf stat streaming with raw counters
+2. **Cache/TLB**: L1/LLC/TLB counters available
+3. **CPU Perf**: cycles/instructions/branches visible
+4. **Memory Activity**: /proc/vmstat rates shown
 5. **Dashboard**: All advanced metrics visible
 
 ### Verification Steps
 
 ```bash
-# Check if perf_events available
+# Check perf_event_paranoid
 cat /proc/sys/kernel/perf_event_paranoid
 
-# Verify in container
-docker-compose exec backend python -c "
-from app.collectors.perf_events import PerfEventsCollector
-c = PerfEventsCollector()
-print('Available:', c.is_available())
-print(c.collect())
-"
+# Verify perf stat in container
+docker compose exec backend perf stat -e cycles,instructions -a sleep 1
 
-# Compare with perf stat
-perf stat -e cycles,instructions,L1-dcache-load-misses sleep 1
+# Compare against host perf stat if needed
+perf stat -e cycles,instructions,L1-dcache-load-misses -a sleep 1
 ```
 
 ### Graceful Degradation
 
-When perf_events is not available:
+When perf stat is not available:
 1. Backend returns `available: false` in perf data
 2. Frontend shows "Not available on this system"
 3. Other metrics continue working normally

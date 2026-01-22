@@ -24,7 +24,7 @@ flowchart TB
     LinuxKernel["🐧 Linux Kernel
     Metrics source:
     CPU, memory, disk, network,
-    perf_events, vmstat"]
+    perf stat, vmstat"]
 
     User -->|Views metrics via| Browser
     Browser -->|HTTP/WebSocket| PerfWatch
@@ -101,12 +101,12 @@ flowchart TB
 - **Memory:** RAM/swap usage, buffers, cached (via psutil)
 - **Network:** Bytes/packets sent/received, per-interface (via psutil)
 - **Disk:** Partition usage, read/write I/O (via psutil)
-- **Hardware Counters:** IPC, cache misses, branch mispredictions (via perf_events)
+- **Hardware Counters:** perf stat raw counters (cpu-clock, context-switches, cpu-migrations, page-faults, cycles, instructions, branches, branch-misses, L1-dcache-loads, L1-dcache-load-misses, LLC-loads, LLC-load-misses, L1-icache-loads, dTLB-loads, dTLB-load-misses, iTLB-loads, iTLB-load-misses)
 - **Memory Bandwidth:** Page I/O, swap activity (via /proc/vmstat)
 
 **Access Method:**
 - psutil library for standard metrics
-- perf_events for hardware performance counters (requires privileged mode)
+- perf stat (perf binary) for hardware counters (requires privileged mode or CAP_PERFMON and PMU access)
 - /proc filesystem for kernel statistics
 
 ---
@@ -117,7 +117,7 @@ flowchart TB
 - Web frontend (user interface)
 - API backend (data collection and serving)
 - PostgreSQL database (metrics storage)
-- Metrics collectors (psutil, perf_events)
+- Metrics collectors (psutil, perf stat)
 
 **Outside PerfWatch:**
 - User's web browser
@@ -128,18 +128,18 @@ flowchart TB
 
 ## Key Constraints
 
-1. **Linux Only:** perf_events hardware counters require Linux kernel
+1. **Linux Only:** perf stat hardware counters require Linux kernel and PMU access
 2. **Localhost Only:** No remote monitoring support
 3. **Single User:** One admin account (no multi-user)
-4. **Privileged Access:** Docker container needs privileged mode for perf_events
-5. **Real-time Focus:** 5-second sampling interval (not configurable)
+4. **Privileged Access:** Docker container needs privileged mode for perf stat access
+5. **Real-time Focus:** 5-second sampling interval (perf events interval configurable)
 
 ---
 
 ## Data Flow Summary
 
 ```
-Linux Kernel → psutil/perf_events → PerfWatch Backend → PostgreSQL
+Linux Kernel → psutil/perf stat → PerfWatch Backend → PostgreSQL
                                   → WebSocket → Browser → User
 ```
 

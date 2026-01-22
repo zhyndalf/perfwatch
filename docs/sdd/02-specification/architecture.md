@@ -88,14 +88,13 @@ app/
 │   ├── memory.py        # Memory metrics
 │   ├── network.py       # Network metrics
 │   ├── disk.py          # Disk metrics
-│   ├── perf_events.py   # Hardware counters
+│   ├── perf_events.py   # perf stat hardware counters
 │   └── aggregator.py    # Collector coordinator
 ├── services/            # Business logic
 │   ├── auth.py          # Auth service
 │   ├── metrics.py       # Metrics service
 │   └── archive.py       # Data retention service
 └── utils/               # Utilities
-    └── perf_wrapper.py  # perf_event_open wrapper
 ```
 
 #### Collector Architecture
@@ -155,7 +154,7 @@ services:
 ### Container Configuration
 | Service | Port | Privileged | Notes |
 |---------|------|------------|-------|
-| backend | 8000 | Yes | Required for perf_events |
+| backend | 8000 | Yes | Required for perf stat |
 | frontend | 3000 | No | Static file serving |
 | db | 5432 | No | Internal only |
 

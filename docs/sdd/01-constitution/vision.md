@@ -32,9 +32,9 @@ All updating in real-time, with historical comparison capabilities.
 
 2. **Hardware-level Insights**
    - Go beyond basic OS metrics
-   - Expose CPU cache hit/miss rates
-   - Show IPC (Instructions Per Cycle)
-   - Memory bandwidth utilization
+   - Expose raw perf counters (cycles, instructions, branches)
+   - Surface cache and TLB counters
+   - Memory activity rates from /proc/vmstat
 
 3. **Historical Comparison**
    - Compare current performance to same time yesterday/last week
@@ -99,7 +99,7 @@ All updating in real-time, with historical comparison capabilities.
 |-------|----------|-------|
 | Phase 1 | ~1 week | Foundation (Docker, DB, Auth, Basic UI) |
 | Phase 2 | ~1 week | Core Metrics (CPU, Memory, Network, Disk) |
-| Phase 3 | ~1 week | Advanced Metrics (perf_events, cache, IPC) |
+| Phase 3 | ~1 week | Advanced Metrics (perf stat counters, cache/TLB) |
 | Phase 4 | ~1 week | History, Comparison, Polish |
 
 **Total Estimated**: ~4 weeks / ~52 hours / ~22 sessions

@@ -1,8 +1,8 @@
 # Resume Context for Claude
 
-> **Last Updated**: 2026-01-20
-> **Last Task Completed**: T014 - Cache Metrics
-> **Next Task**: T015 - CPU Perf Metrics
+> **Last Updated**: 2026-01-21
+> **Last Task Completed**: Phase 5 Cleanup + perf stat refactor
+> **Next Task**: None (project complete)
 
 ---
 
@@ -12,7 +12,7 @@
 # Start services
 docker compose up -d
 
-# Run tests (166 tests should pass)
+# Run tests (238 tests should pass)
 docker compose run --rm backend pytest tests/ -v
 
 # Check current status
@@ -23,23 +23,21 @@ cat docs/sdd/CURRENT_TASK.md
 
 ## Current Project State
 
-### Progress: 64% Complete (14/22 tasks)
+### Progress: 100% Complete (22/22 tasks)
 
 | Phase | Status |
 |-------|--------|
-| Phase 1: Foundation | ✅ 100% (5/5) |
-| Phase 2: Core Metrics | ✅ 100% (7/7) |
-| Phase 3: Advanced | 40% (2/5) - T013, T014 done |
-| Phase 4: Polish | 0% (0/5) |
+| Phase 1: Foundation | ✅ 100% |
+| Phase 2: Core Metrics | ✅ 100% |
+| Phase 3: Advanced Metrics | ✅ 100% |
+| Phase 4: Polish | ✅ 100% |
+| Phase 5: Cleanup | ✅ 100% |
 
-### Completed Tasks (Phase 3)
-- **T013**: Perf Events Setup - Linux perf_events with ctypes syscall
-- **T014**: Cache Metrics - L1D and LLC cache miss rates
-
-### Remaining Tasks (Phase 3)
-- **T015**: CPU Perf Metrics - Branch predictions, TLB metrics
-- **T016**: Memory Bandwidth - DDR read/write rates
-- **T017**: Advanced Dashboard - Add perf metrics to UI
+### Highlights
+- perf_events refactored to use `perf stat -I` streaming
+- Perf events are raw counters only (no IPC or derived rates)
+- Configurable perf CPU cores + interval via settings
+- Frontend shows perf counters grid and perf event selector in history
 
 ---
 
@@ -47,95 +45,55 @@ cat docs/sdd/CURRENT_TASK.md
 
 ### PerfEventsCollector (`backend/app/collectors/perf_events.py`)
 
-The collector uses ctypes to directly call `perf_event_open` syscall:
-- Collects: cycles, instructions, IPC, L1D cache, LLC cache
-- Gracefully returns `{"available": False}` when perf_events unavailable
-- Works on x86_64, aarch64, arm architectures
+The collector uses perf stat streaming and parses CSV output:
+- Collects: cpu-clock, context-switches, cpu-migrations, page-faults
+- Collects: cycles, instructions, branches, branch-misses
+- Collects: L1/LLC cache and dTLB/iTLB counters
+- Marks `available: false` if any event is missing/unsupported
 
-**Current metrics collected:**
+**Current return format:**
 ```python
 {
     "available": True,
-    "cycles": int,
-    "instructions": int,
-    "ipc": float,  # instructions / cycles
-    "l1d_references": int,
-    "l1d_misses": int,
-    "l1d_miss_rate": float,  # misses / references
-    "llc_references": int,
-    "llc_misses": int,
-    "llc_miss_rate": float,
+    "cpu_cores": "all",
+    "interval_ms": 1000,
+    "sample_time": "1.000123",
+    "events": {
+        "cycles": {"value": 5000000000, "unit": None},
+        "instructions": {"value": 9000000000, "unit": None},
+        "cpu-clock": {"value": 1000.12, "unit": "msec"}
+    }
 }
 ```
 
 ### Important Notes
-1. **perf_events won't work in VM** - The host has `perf_event_paranoid=4` and PMU not exposed
-2. **Graceful degradation is correct behavior** - Returns `{"available": False}`
-3. **WebSocket test fix** - Uses separate `test_app` to avoid event loop conflicts
+1. **VMs need PMU passthrough** - perf stat requires exposed counters
+2. **Permissions matter** - `perf_event_paranoid` and CAP_PERFMON/privileged
+3. **Missing events** - Any missing/unsupported event marks perf_events unavailable
 
 ---
 
-## Files Modified in Recent Sessions
+## Files Touched in Refactor
 
-| File | Purpose |
-|------|---------|
-| `backend/app/collectors/perf_events.py` | Perf events + cache metrics collector |
-| `backend/app/schemas/metrics.py` | PerfEventsMetrics schema |
-| `backend/app/api/websocket.py` | Includes perf_events in stream |
-| `backend/tests/test_perf_events.py` | 35 tests for perf_events |
-| `backend/tests/test_websocket.py` | Fixed event loop isolation |
-
----
-
-## T015 Implementation Plan (Next Task)
-
-### What to Add
-Branch prediction and TLB metrics using existing perf_events infrastructure:
-
-```python
-# Hardware events to add
-PERF_COUNT_HW_BRANCH_INSTRUCTIONS = 4
-PERF_COUNT_HW_BRANCH_MISSES = 5
-
-# Cache events for TLB
-PERF_COUNT_HW_CACHE_DTLB = 3  # Already defined
-PERF_COUNT_HW_CACHE_ITLB = 4  # Already defined
-```
-
-### Metrics to collect
-- `branch_instructions`: Total branches
-- `branch_misses`: Mispredicted branches
-- `branch_miss_rate`: misses / instructions
-- `dtlb_misses`: Data TLB misses (optional)
-- `itlb_misses`: Instruction TLB misses (optional)
-
-### Files to modify
-1. `backend/app/collectors/perf_events.py` - Add branch/TLB events
-2. `backend/app/schemas/metrics.py` - Add new fields
-3. `backend/tests/test_perf_events.py` - Add tests
-4. `docs/sdd/04-tasks/phase-3/T015-cpu-perf-metrics.md` - Create task file
+- `backend/app/collectors/perf_events.py` - perf stat subprocess + parser
+- `backend/app/config.py` - perf_events CPU cores + interval settings
+- `backend/app/services/config.py` - config schema updates
+- `frontend/src/views/Dashboard.vue` - perf counters grid
+- `frontend/src/views/History.vue` - perf event selector + chart
+- `frontend/src/views/Settings.vue` - perf events config inputs
+- `backend/tests/test_perf_events.py` - perf stat parsing tests
 
 ---
 
 ## Test Summary
 
-- **166 total tests**
-- All passing as of last commit
-- perf_events tests: 35 (26 original + 9 cache)
-
----
-
-## Git Status
-
-- **Branch**: dev
-- **Last commit**: `e0621d3` - feat(T014): Add cache metrics
-- **Remote**: Up to date with origin/dev
+- **238 total tests**
+- All passing as of last run
 
 ---
 
 ## To Continue Development
 
 1. Read `docs/sdd/CURRENT_TASK.md` for context
-2. Start with T015 - CPU Perf Metrics
-3. Follow the pattern established in T013/T014
-4. Run tests frequently: `docker compose run --rm backend pytest tests/test_perf_events.py -v`
+2. Run `docker compose up -d`
+3. Run tests if changing collectors or schemas

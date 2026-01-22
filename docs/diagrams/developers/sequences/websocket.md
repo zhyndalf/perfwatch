@@ -114,12 +114,12 @@ sequenceDiagram
 
             Aggregator->>Collectors: perf_events_collector.safe_collect()
             activate Collectors
-            Collectors->>LinuxKernel: perf_event_open() syscall
-            alt perf_events available
+            Collectors->>LinuxKernel: perf stat subprocess
+            alt perf stat available
                 LinuxKernel-->>Collectors: Hardware counters
-                Collectors-->>Aggregator: { ipc: 1.8, ... }
-            else Permission denied
-                Collectors-->>Aggregator: None (graceful degradation)
+                Collectors-->>Aggregator: { available: true, events: {...} }
+            else Permission denied or PMU missing
+                Collectors-->>Aggregator: { available: false, error: "perf stat unavailable" }
             end
             deactivate Collectors
 
@@ -572,8 +572,8 @@ export const useMetricsStore = defineStore('metrics', {
 
 ### Collector Failure
 
-**Symptom:** One collector returns None (e.g., perf_events permission denied)
-**Client Behavior:** UI shows "N/A" for that metric
+**Symptom:** perf_events returns `available: false` (perf stat permission denied)
+**Client Behavior:** UI shows "Hardware Performance Counters Unavailable"
 **System Behavior:** Other collectors continue normally (graceful degradation)
 
 ---
