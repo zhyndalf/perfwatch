@@ -199,6 +199,16 @@ flowchart TB
 | Collectors | psutil (CPU, Memory, Network, Disk), perf_events (hardware counters) |
 | Deployment | Docker Compose |
 
+### Supported Architectures
+
+| Architecture | Status | Notes |
+|--------------|--------|-------|
+| x86_64 (amd64) | ✅ Full Support | Intel/AMD 64-bit processors |
+| ARM64 (aarch64) | ✅ Full Support | Raspberry Pi 4/5, AWS Graviton, Apple Silicon (Linux VMs), NVIDIA Jetson |
+| ARM32 (armv7l) | ⚠️ Limited | Older Raspberry Pi, psutil works but perf_events limited |
+
+Multi-architecture Docker images are automatically built and published to GitHub Container Registry.
+
 ## Architecture Overview
 
 > 📐 **[View All Diagrams →](./docs/diagrams/README.md)** (C4 models, sequences, database schema, user flows)
@@ -375,6 +385,12 @@ make db-shell         # PostgreSQL shell
 make health           # Check service health
 make ps               # Show running containers
 
+# Multi-Architecture Builds
+make docker-buildx-setup    # Set up buildx for multi-arch builds
+make docker-build-multiarch # Build for amd64 + arm64 locally
+make docker-build-arm       # Build ARM64 images for local testing
+make docker-push-multiarch  # Build and push to GHCR
+
 # Cleanup
 make clean            # Remove build artifacts
 make docker-clean     # Remove containers and volumes
@@ -486,7 +502,7 @@ GET /api/history/compare?metric_type=cpu&start_time_1=2026-01-20T10:00:00Z&end_t
 
 For deploying PerfWatch to a production server, see the comprehensive deployment guide:
 
-**📖 [Deployment Guide](./docs/DEPLOYMENT.md)** - Complete step-by-step instructions for bare metal deployment
+**[Deployment Guide](./docs/DEPLOYMENT.md)** - Complete step-by-step instructions for bare metal deployment
 
 The guide covers:
 - ✅ Docker & Docker Compose installation
@@ -498,6 +514,25 @@ The guide covers:
 - ✅ Auto-startup configuration
 - ✅ Backup and maintenance procedures
 - ✅ Troubleshooting common issues
+- ✅ **ARM64 deployment** (Raspberry Pi, AWS Graviton, etc.)
+
+### ARM64 / Raspberry Pi Deployment
+
+PerfWatch fully supports ARM64 Linux systems. Pre-built multi-arch images are available:
+
+```bash
+# Images auto-detect your architecture
+docker pull ghcr.io/zhyndalf/perfwatch-backend:latest
+docker pull ghcr.io/zhyndalf/perfwatch-frontend:latest
+
+# Or just use docker compose (auto-detects architecture)
+git clone https://github.com/zhyndalf/perfwatch.git
+cd perfwatch
+docker compose up -d
+docker compose exec backend alembic upgrade head
+```
+
+See the [Deployment Guide ARM64 section](./docs/DEPLOYMENT.md#arm64-deployment-raspberry-pi-aws-graviton-etc) for detailed instructions.
 
 **Quick deployment summary:**
 ```bash
