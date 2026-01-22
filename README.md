@@ -517,6 +517,7 @@ The guide covers:
 - ✅ Backup and maintenance procedures
 - ✅ Troubleshooting common issues
 - ✅ **ARM64 deployment** (Raspberry Pi, AWS Graviton, etc.)
+- ✅ **Offline / air-gapped install** (no network on target)
 
 ### ARM64 / Raspberry Pi Deployment
 
@@ -535,6 +536,12 @@ docker compose exec backend alembic upgrade head
 ```
 
 See the [Deployment Guide ARM64 section](./docs/DEPLOYMENT.md#arm64-deployment-raspberry-pi-aws-graviton-etc) for detailed instructions.
+
+### Offline / Air-Gapped Install
+
+If the target host has no network access, follow the offline deployment steps:
+
+**[Offline / Air-Gapped Install](./docs/DEPLOYMENT.md#offline--air-gapped-install-no-network-on-target)** - Build bundles on a staging machine and load them on the target.
 
 **Quick deployment summary:**
 ```bash

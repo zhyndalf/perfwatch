@@ -1,4 +1,4 @@
-.PHONY: help docker-up docker-down docker-build docker-logs backend-test backend-lint backend-shell frontend-build frontend-dev frontend-shell db-migrate db-upgrade db-downgrade db-shell clean docker-buildx-setup docker-build-multiarch docker-build-arm docker-push-multiarch docker-buildx-info
+.PHONY: help docker-up docker-down docker-build docker-logs backend-test backend-lint backend-shell frontend-build frontend-dev frontend-shell db-migrate db-upgrade db-downgrade db-shell clean offline-bundle-amd64 offline-bundle-arm64 offline-load-amd64 offline-load-arm64 offline-up offline-down offline-migrate docker-buildx-setup docker-build-multiarch docker-build-arm docker-push-multiarch docker-buildx-info
 
 ##@ General
 
@@ -142,6 +142,49 @@ setup: docker-build docker-up db-upgrade ## Complete setup (build, start, migrat
 	@echo "API Docs: http://localhost:8000/docs"
 	@echo "Login: admin / admin123"
 
+##@ Offline / Air-Gapped
+
+OFFLINE_DIR := offline-bundles
+OFFLINE_BACKEND_IMAGE := perfwatch-backend:offline
+OFFLINE_FRONTEND_IMAGE := perfwatch-frontend:offline
+OFFLINE_POSTGRES_IMAGE := postgres:15
+OFFLINE_SRC_TAR := $(OFFLINE_DIR)/perfwatch-src.tar.gz
+OFFLINE_AMD64_TAR := $(OFFLINE_DIR)/perfwatch-images-amd64.tar
+OFFLINE_ARM64_TAR := $(OFFLINE_DIR)/perfwatch-images-arm64.tar
+
+offline-bundle-amd64: ## Build and export offline bundle for amd64
+	mkdir -p $(OFFLINE_DIR)
+	docker build -t $(OFFLINE_BACKEND_IMAGE) ./backend
+	docker build -t $(OFFLINE_FRONTEND_IMAGE) ./frontend
+	docker pull $(OFFLINE_POSTGRES_IMAGE)
+	docker save -o $(OFFLINE_AMD64_TAR) $(OFFLINE_BACKEND_IMAGE) $(OFFLINE_FRONTEND_IMAGE) $(OFFLINE_POSTGRES_IMAGE)
+	tar -czf $(OFFLINE_SRC_TAR) --exclude=.git --exclude=$(OFFLINE_DIR) .
+	@echo "Offline bundle created: $(OFFLINE_AMD64_TAR), $(OFFLINE_SRC_TAR)"
+
+offline-bundle-arm64: docker-buildx-setup ## Build and export offline bundle for arm64 (native or cross)
+	mkdir -p $(OFFLINE_DIR)
+	docker buildx build --platform linux/arm64 -t $(OFFLINE_BACKEND_IMAGE) --load ./backend
+	docker buildx build --platform linux/arm64 -t $(OFFLINE_FRONTEND_IMAGE) --load ./frontend
+	docker pull --platform linux/arm64 $(OFFLINE_POSTGRES_IMAGE)
+	docker save -o $(OFFLINE_ARM64_TAR) $(OFFLINE_BACKEND_IMAGE) $(OFFLINE_FRONTEND_IMAGE) $(OFFLINE_POSTGRES_IMAGE)
+	tar -czf $(OFFLINE_SRC_TAR) --exclude=.git --exclude=$(OFFLINE_DIR) .
+	@echo "Offline bundle created: $(OFFLINE_ARM64_TAR), $(OFFLINE_SRC_TAR)"
+
+offline-load-amd64: ## Load offline amd64 images tar into Docker
+	docker load -i $(OFFLINE_AMD64_TAR)
+
+offline-load-arm64: ## Load offline arm64 images tar into Docker
+	docker load -i $(OFFLINE_ARM64_TAR)
+
+offline-up: ## Start services using offline images
+	docker compose -f docker-compose.offline.yml up -d
+
+offline-down: ## Stop offline services
+	docker compose -f docker-compose.offline.yml down
+
+offline-migrate: ## Run migrations using offline images
+	docker compose -f docker-compose.offline.yml exec backend alembic upgrade head
+
 ##@ Multi-Architecture Builds
 
 BUILDX_BUILDER := perfwatch-builder
@@ -187,4 +230,3 @@ docker-buildx-info: ## Show buildx builder info and platforms
 	@docker buildx ls
 	@echo ""
 	@docker buildx inspect $(BUILDX_BUILDER) 2>/dev/null || echo "Builder '$(BUILDX_BUILDER)' not created. Run 'make docker-buildx-setup'"
-
