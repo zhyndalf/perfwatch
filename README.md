@@ -480,7 +480,57 @@ GET /api/history/compare?metric_type=cpu&period=hour&compare_to=yesterday
 GET /api/history/compare?metric_type=cpu&start_time_1=2026-01-20T10:00:00Z&end_time_1=2026-01-20T12:00:00Z&start_time_2=2026-01-21T10:00:00Z&end_time_2=2026-01-21T12:00:00Z
 ```
 
+## Deployment
+
+### Production Deployment
+
+For deploying PerfWatch to a production server, see the comprehensive deployment guide:
+
+**📖 [Deployment Guide](./docs/DEPLOYMENT.md)** - Complete step-by-step instructions for bare metal deployment
+
+The guide covers:
+- ✅ Docker & Docker Compose installation
+- ✅ Environment configuration and security
+- ✅ Database setup and migrations
+- ✅ HTTPS with Nginx reverse proxy
+- ✅ Let's Encrypt SSL certificates
+- ✅ Firewall configuration
+- ✅ Auto-startup configuration
+- ✅ Backup and maintenance procedures
+- ✅ Troubleshooting common issues
+
+**Quick deployment summary:**
+```bash
+# 1. Install Docker
+# 2. Clone repository
+git clone https://github.com/zhyndalf/perfwatch.git
+cd perfwatch
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with strong passwords and secrets
+
+# 4. Start services
+docker compose up -d
+
+# 5. Run migrations
+docker compose exec backend alembic upgrade head
+
+# 6. Access at http://your-server:3000
+```
+
+For production, it's **strongly recommended** to:
+- Use HTTPS with a reverse proxy (Nginx/Apache)
+- Change all default passwords
+- Configure firewall rules
+- Set up automated backups
+
 ## Documentation
+
+### Getting Started
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Development Guide](./docs/DEVELOPMENT.md)** - Local development setup
+- **[Contributing Guide](./docs/CONTRIBUTING.md)** - How to contribute
 
 ### Visual Documentation
 See [docs/diagrams/README.md](./docs/diagrams/README.md) for comprehensive diagrams organized by audience:
