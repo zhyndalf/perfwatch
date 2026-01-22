@@ -116,7 +116,7 @@ class MetricsSnapshot(Base):
 | memory | Memory metrics | See Memory JSONB structure |
 | network | Network metrics | See Network JSONB structure |
 | disk | Disk I/O metrics | See Disk JSONB structure |
-| perf | perf_events data | See Perf JSONB structure |
+| perf_events | perf stat data | See Perf JSONB structure |
 
 ### CPU JSONB Structure
 ```json
@@ -231,29 +231,30 @@ class MetricsSnapshot(Base):
 ```json
 {
   "available": true,
-  "error": null,
-  "cycles": 3200000000,
-  "instructions": 5920000000,
-  "ipc": 1.85,
-  "cache": {
-    "l1i_loads": 1000000,
-    "l1i_misses": 12500,
-    "l1i_miss_rate": 0.0125,
-    "l1d_loads": 5000000,
-    "l1d_misses": 45000,
-    "l1d_miss_rate": 0.009,
-    "l2_loads": 57500,
-    "l2_misses": 8000,
-    "l2_miss_rate": 0.139,
-    "llc_loads": 8000,
-    "llc_misses": 2500,
-    "llc_miss_rate": 0.312
+  "cpu_cores": "all",
+  "interval_ms": 1000,
+  "sample_time": "1.000000000",
+  "events": {
+    "cpu-clock": { "value": 1012.3, "unit": "msec" },
+    "context-switches": { "value": 120, "unit": null },
+    "cpu-migrations": { "value": 3, "unit": null },
+    "page-faults": { "value": 456, "unit": null },
+    "cycles": { "value": 3200000000, "unit": null },
+    "instructions": { "value": 5920000000, "unit": null },
+    "branches": { "value": 1800000000, "unit": null },
+    "branch-misses": { "value": 12000000, "unit": null },
+    "L1-dcache-loads": { "value": 5000000, "unit": null },
+    "L1-dcache-load-misses": { "value": 45000, "unit": null },
+    "LLC-loads": { "value": 8000, "unit": null },
+    "LLC-load-misses": { "value": 2500, "unit": null },
+    "L1-icache-loads": { "value": 1000000, "unit": null },
+    "dTLB-loads": { "value": 3000000, "unit": null },
+    "dTLB-load-misses": { "value": 3000, "unit": null },
+    "iTLB-loads": { "value": 1800000, "unit": null },
+    "iTLB-load-misses": { "value": 2500, "unit": null }
   },
-  "memory_bandwidth": {
-    "read_mbps": 12500,
-    "write_mbps": 8000,
-    "total_mbps": 20500
-  }
+  "missing_events": [],
+  "unsupported_events": []
 }
 ```
 
@@ -291,7 +292,7 @@ class Config(Base):
 INSERT INTO config (key, value) VALUES
 ('sampling', '{"interval_seconds": 5}'),
 ('retention', '{"days": 30, "archive_enabled": true, "downsample_after_days": 7, "downsample_interval": "1h"}'),
-('features', '{"perf_events_enabled": true}');
+('features', '{"perf_events_enabled": true, "perf_events_cpu_cores": "all", "perf_events_interval_ms": 1000}');
 ```
 
 ---

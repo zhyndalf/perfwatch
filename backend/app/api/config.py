@@ -39,10 +39,18 @@ async def get_config(
         "interval_seconds", settings.SAMPLING_INTERVAL_SECONDS
     )
     perf_events_enabled = config["features"].get("perf_events_enabled", True)
+    perf_events_cpu_cores = config["features"].get(
+        "perf_events_cpu_cores", settings.PERF_EVENTS_CPU_CORES
+    )
+    perf_events_interval_ms = config["features"].get(
+        "perf_events_interval_ms", settings.PERF_EVENTS_INTERVAL_MS
+    )
 
     return ConfigResponse(
         sampling_interval_seconds=sampling_interval_seconds,
         perf_events_enabled=perf_events_enabled,
+        perf_events_cpu_cores=perf_events_cpu_cores,
+        perf_events_interval_ms=perf_events_interval_ms,
         retention_days=retention.retention_days,
         archive_enabled=retention.archive_enabled,
         downsample_after_days=retention.downsample_after_days,
@@ -91,18 +99,28 @@ async def update_config(
         db,
         sampling_interval_seconds=payload.sampling_interval_seconds,
         perf_events_enabled=payload.perf_events_enabled,
+        perf_events_cpu_cores=payload.perf_events_cpu_cores,
+        perf_events_interval_ms=payload.perf_events_interval_ms,
     )
 
     sampling_interval_seconds = config["sampling"].get(
         "interval_seconds", settings.SAMPLING_INTERVAL_SECONDS
     )
     perf_events_enabled = config["features"].get("perf_events_enabled", True)
+    perf_events_cpu_cores = config["features"].get(
+        "perf_events_cpu_cores", settings.PERF_EVENTS_CPU_CORES
+    )
+    perf_events_interval_ms = config["features"].get(
+        "perf_events_interval_ms", settings.PERF_EVENTS_INTERVAL_MS
+    )
 
     return ConfigUpdateResponse(
         message="Configuration updated",
         config=ConfigResponse(
             sampling_interval_seconds=sampling_interval_seconds,
             perf_events_enabled=perf_events_enabled,
+            perf_events_cpu_cores=perf_events_cpu_cores,
+            perf_events_interval_ms=perf_events_interval_ms,
             retention_days=retention.retention_days,
             archive_enabled=retention.archive_enabled,
             downsample_after_days=retention.downsample_after_days,

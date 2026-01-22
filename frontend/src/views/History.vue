@@ -19,6 +19,17 @@
           <option value="memory_bandwidth">Memory Bandwidth</option>
         </select>
       </div>
+      <div v-if="metricType === 'perf_events'" class="min-w-[220px]">
+        <label class="block text-sm font-medium text-gray-400 mb-2">Perf Event</label>
+        <select
+          v-model="selectedPerfEvent"
+          class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-accent-cyan"
+        >
+          <option v-for="event in perfEventOptions" :key="event" :value="event">
+            {{ event }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -263,6 +274,28 @@ use([GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, LineCh
 
 const historyStore = useHistoryStore()
 
+const perfEventOptions = [
+  'cpu-clock',
+  'context-switches',
+  'cpu-migrations',
+  'page-faults',
+  'cycles',
+  'instructions',
+  'branches',
+  'branch-misses',
+  'L1-dcache-loads',
+  'L1-dcache-load-misses',
+  'LLC-loads',
+  'LLC-load-misses',
+  'L1-icache-loads',
+  'dTLB-loads',
+  'dTLB-load-misses',
+  'iTLB-loads',
+  'iTLB-load-misses',
+]
+
+const selectedPerfEvent = ref(perfEventOptions[0])
+
 const metricType = computed({
   get: () => historyStore.metricType,
   set: (value) => historyStore.setMetricType(value),
@@ -285,11 +318,21 @@ const datasetATimeLabel = computed(() => formatRange(historyStore.datasetA))
 const datasetBTimeLabel = computed(() => formatRange(historyStore.datasetB))
 
 const datasetAOptions = computed(() =>
-  buildDatasetOptions(historyStore.datasetA.dataPoints, metricType.value, 'Dataset A')
+  buildDatasetOptions(
+    historyStore.datasetA.dataPoints,
+    metricType.value,
+    'Dataset A',
+    selectedPerfEvent.value
+  )
 )
 
 const datasetBOptions = computed(() =>
-  buildDatasetOptions(historyStore.datasetB.dataPoints, metricType.value, 'Dataset B')
+  buildDatasetOptions(
+    historyStore.datasetB.dataPoints,
+    metricType.value,
+    'Dataset B',
+    selectedPerfEvent.value
+  )
 )
 
 const comparisonLabel = computed(() => {
@@ -301,12 +344,25 @@ const comparisonCharts = computed(() => {
   return buildComparisonCharts(
     historyStore.datasetA.dataPoints,
     historyStore.datasetB.dataPoints,
-    metricType.value
+    metricType.value,
+    selectedPerfEvent.value
   )
 })
 
-const statsA = computed(() => buildStats(historyStore.datasetA.dataPoints, metricType.value))
-const statsB = computed(() => buildStats(historyStore.datasetB.dataPoints, metricType.value))
+const statsA = computed(() =>
+  buildStats(historyStore.datasetA.dataPoints, metricType.value, selectedPerfEvent.value)
+)
+const statsB = computed(() =>
+  buildStats(historyStore.datasetB.dataPoints, metricType.value, selectedPerfEvent.value)
+)
+
+const perfEventUnit = computed(() => {
+  if (metricType.value !== 'perf_events') return null
+  return (
+    getPerfEventUnit(historyStore.datasetA.dataPoints, selectedPerfEvent.value) ||
+    getPerfEventUnit(historyStore.datasetB.dataPoints, selectedPerfEvent.value)
+  )
+})
 
 function setLastHours(which, hours) {
   const end = new Date()
@@ -372,10 +428,35 @@ function formatValue(value) {
   if (metricType.value === 'network' || metricType.value === 'disk' || metricType.value === 'memory_bandwidth') {
     return formatBytes(value) + '/s'
   }
+  if (metricType.value === 'perf_events') {
+    return formatPerfValue(value, perfEventUnit.value)
+  }
   return value.toFixed(2)
 }
 
-function buildDatasetOptions(points, type, label) {
+function formatPerfValue(value, unit) {
+  const number = Number(value)
+  if (Number.isNaN(number)) return 'N/A'
+  const decimals = Number.isInteger(number) ? 0 : 2
+  const suffix = unit ? ` ${unit}` : ''
+  return `${number.toFixed(decimals)}${suffix}`
+}
+
+function getPerfEventValue(point, eventName) {
+  if (!eventName) return null
+  return point.data?.events?.[eventName]?.value ?? null
+}
+
+function getPerfEventUnit(points, eventName) {
+  if (!eventName) return null
+  for (const point of points) {
+    const unit = point.data?.events?.[eventName]?.unit
+    if (unit) return unit
+  }
+  return null
+}
+
+function buildDatasetOptions(points, type, label, perfEvent) {
   const timestamps = points.map((point) => new Date(point.timestamp).toLocaleTimeString())
   const baseOptions = {
     grid: { left: 64, right: 32, top: 40, bottom: 80, containLabel: true },
@@ -520,58 +601,31 @@ function buildDatasetOptions(points, type, label) {
   }
 
   if (type === 'perf_events') {
+    const unit = getPerfEventUnit(points, perfEvent)
     return {
       ...baseOptions,
       legend: {
-        data: ['IPC', 'L1D Miss %', 'LLC Miss %'],
+        data: [perfEvent],
         textStyle: { color: '#e2e8f0' },
       },
-      grid: { ...baseOptions.grid, right: 48 },
-      yAxis: [
-        {
-          type: 'value',
-          name: 'IPC',
-          axisLabel: { color: '#e2e8f0', margin: 10 },
-          splitLine: { lineStyle: { color: '#334155' } },
-          axisLine: { lineStyle: { color: '#475569' } },
+      yAxis: {
+        type: 'value',
+        name: unit || '',
+        axisLabel: {
+          color: '#e2e8f0',
+          margin: 10,
+          formatter: (value) => formatPerfValue(value, unit),
         },
-        {
-          type: 'value',
-          name: 'Miss %',
-          min: 0,
-          max: 100,
-          axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
-          axisLine: { lineStyle: { color: '#475569' } },
-          splitLine: { show: false },
-        },
-      ],
+        splitLine: { lineStyle: { color: '#334155' } },
+        axisLine: { lineStyle: { color: '#475569' } },
+      },
       series: [
         {
-          name: 'IPC',
+          name: perfEvent,
           type: 'line',
           showSymbol: false,
           lineStyle: { color: '#38bdf8', width: 2 },
-          data: points.map((point) => point.data?.ipc ?? null),
-        },
-        {
-          name: 'L1D Miss %',
-          type: 'line',
-          showSymbol: false,
-          yAxisIndex: 1,
-          lineStyle: { color: '#f97316', width: 2 },
-          data: points.map((point) =>
-            point.data?.l1d_miss_rate != null ? point.data.l1d_miss_rate * 100 : null
-          ),
-        },
-        {
-          name: 'LLC Miss %',
-          type: 'line',
-          showSymbol: false,
-          yAxisIndex: 1,
-          lineStyle: { color: '#a855f7', width: 2 },
-          data: points.map((point) =>
-            point.data?.llc_miss_rate != null ? point.data.llc_miss_rate * 100 : null
-          ),
+          data: points.map((point) => getPerfEventValue(point, perfEvent)),
         },
       ],
     }
@@ -629,7 +683,7 @@ function buildDatasetOptions(points, type, label) {
   }
 }
 
-function buildPrimaryValue(point, type) {
+function buildPrimaryValue(point, type, perfEvent) {
   if (!point?.data) return null
   if (type === 'cpu' || type === 'memory') {
     return point.data?.usage_percent ?? null
@@ -645,7 +699,7 @@ function buildPrimaryValue(point, type) {
     return read + write
   }
   if (type === 'perf_events') {
-    return point.data?.ipc ?? null
+    return getPerfEventValue(point, perfEvent)
   }
   if (type === 'memory_bandwidth') {
     const page = point.data?.page_io_bytes_per_sec ?? 0
@@ -655,8 +709,8 @@ function buildPrimaryValue(point, type) {
   return null
 }
 
-function buildComparisonCharts(pointsA, pointsB, type) {
-  const seriesList = getComparisonSeries(type)
+function buildComparisonCharts(pointsA, pointsB, type, perfEvent) {
+  const seriesList = getComparisonSeries(type, perfEvent)
   return seriesList.map((series) => {
     const seriesA = buildRelativeSeries(pointsA, series.extractor)
     const seriesB = buildRelativeSeries(pointsB, series.extractor)
@@ -761,9 +815,9 @@ function formatOffset(offsetSeconds) {
   return `${minutes}m`
 }
 
-function buildStats(points, type) {
+function buildStats(points, type, perfEvent) {
   const values = points
-    .map((point) => buildPrimaryValue(point, type))
+    .map((point) => buildPrimaryValue(point, type, perfEvent))
     .filter((value) => value !== null && value !== undefined)
   if (!values.length) {
     return { min: null, max: null, avg: null }
@@ -774,7 +828,7 @@ function buildStats(points, type) {
   return { min, max, avg }
 }
 
-function getComparisonSeries(type) {
+function getComparisonSeries(type, perfEvent) {
   if (type === 'network') {
     return [
       {
@@ -829,24 +883,10 @@ function getComparisonSeries(type) {
   if (type === 'perf_events') {
     return [
       {
-        title: 'IPC',
-        subtitle: 'Instructions per cycle',
+        title: perfEvent || 'Perf Event',
+        subtitle: 'Perf stat counter',
         axisType: 'number',
-        extractor: (point) => point.data?.ipc ?? null,
-      },
-      {
-        title: 'L1D Miss Rate',
-        subtitle: 'L1D miss percentage',
-        axisType: 'percent',
-        extractor: (point) =>
-          point.data?.l1d_miss_rate != null ? point.data.l1d_miss_rate * 100 : null,
-      },
-      {
-        title: 'LLC Miss Rate',
-        subtitle: 'LLC miss percentage',
-        axisType: 'percent',
-        extractor: (point) =>
-          point.data?.llc_miss_rate != null ? point.data.llc_miss_rate * 100 : null,
+        extractor: (point) => getPerfEventValue(point, perfEvent),
       },
     ]
   }
@@ -878,7 +918,7 @@ function getComparisonSeries(type) {
       title: 'Value',
       subtitle: 'Metric value',
       axisType: 'number',
-      extractor: (point) => buildPrimaryValue(point, type),
+      extractor: (point) => buildPrimaryValue(point, type, perfEvent),
     },
   ]
 }

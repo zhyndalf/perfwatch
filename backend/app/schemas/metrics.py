@@ -75,26 +75,12 @@ class PerfEventsMetrics(BaseModel):
     """Hardware performance counter metrics from Linux perf_events."""
 
     available: bool = Field(False, description="Whether perf_events is available")
-    # CPU counters
-    cycles: Optional[int] = Field(None, description="CPU cycles count")
-    instructions: Optional[int] = Field(None, description="Instructions count")
-    ipc: Optional[float] = Field(None, description="Instructions Per Cycle")
-    # L1 data cache
-    l1d_references: Optional[int] = Field(None, description="L1 data cache accesses")
-    l1d_misses: Optional[int] = Field(None, description="L1 data cache misses")
-    l1d_miss_rate: Optional[float] = Field(None, description="L1 cache miss rate (0.0-1.0)")
-    # Last Level Cache (L3 or L2 depending on CPU)
-    llc_references: Optional[int] = Field(None, description="LLC accesses")
-    llc_misses: Optional[int] = Field(None, description="LLC misses")
-    llc_miss_rate: Optional[float] = Field(None, description="LLC miss rate (0.0-1.0)")
-    # Branch prediction
-    branch_references: Optional[int] = Field(None, description="Branch predictions")
-    branch_misses: Optional[int] = Field(None, description="Branch mispredictions")
-    branch_miss_rate: Optional[float] = Field(None, description="Branch misprediction rate (0.0-1.0)")
-    # Data TLB
-    dtlb_references: Optional[int] = Field(None, description="Data TLB accesses")
-    dtlb_misses: Optional[int] = Field(None, description="Data TLB misses")
-    dtlb_miss_rate: Optional[float] = Field(None, description="Data TLB miss rate (0.0-1.0)")
+    cpu_cores: Optional[str] = Field(None, description="CPU cores targeted (or 'all')")
+    interval_ms: Optional[int] = Field(None, description="perf stat interval in milliseconds")
+    sample_time: Optional[str] = Field(None, description="perf stat sample timestamp")
+    events: Optional[Dict[str, Any]] = Field(None, description="Perf event values")
+    missing_events: Optional[List[str]] = Field(None, description="Events missing from output")
+    unsupported_events: Optional[List[str]] = Field(None, description="Events not supported")
 
 
 # === Memory Bandwidth Metrics ===

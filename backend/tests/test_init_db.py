@@ -99,6 +99,8 @@ class TestCreateDefaultConfig:
 
         assert config is not None
         assert "perf_events_enabled" in config.value
+        assert "perf_events_cpu_cores" in config.value
+        assert "perf_events_interval_ms" in config.value
 
     @pytest.mark.asyncio
     async def test_does_not_duplicate_config(self, db_session):

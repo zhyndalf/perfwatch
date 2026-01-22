@@ -40,11 +40,10 @@ Metrics available through standard OS interfaces (psutil):
 - Disk I/O and usage
 
 ### Advanced Metrics
-Metrics requiring hardware counter access (perf_events):
-- Cache miss rates (L1, L2, L3)
-- IPC (Instructions Per Cycle)
-- CPU cycles
-- Memory bandwidth
+Metrics requiring hardware counter access (perf stat):
+- cpu-clock, context-switches, cpu-migrations, page-faults
+- cycles, instructions, branches, branch-misses
+- L1/LLC cache and TLB counters
 
 ---
 
@@ -61,11 +60,11 @@ Percentage of CPU time spent doing work (non-idle).
 - **IRQ**: Time handling hardware interrupts
 - **SoftIRQ**: Time handling software interrupts
 
-### IPC (Instructions Per Cycle)
-How many instructions the CPU completes per clock cycle. Higher is better. Typical values: 0.5-3.0.
+### Instructions
+Total retired instructions executed by the CPU.
 
 ### CPU Cycles
-Total clock cycles consumed. Used with instructions to calculate IPC.
+Total clock cycles consumed (raw counter).
 
 ---
 
@@ -87,7 +86,7 @@ Disk space used as virtual memory when RAM is full.
 Large memory pages (2MB or 1GB instead of 4KB) for reducing TLB misses.
 
 ### Memory Bandwidth
-Rate of data transfer between CPU and RAM (GB/s). Measured via perf_events.
+Estimated memory activity from /proc/vmstat (page in/out and swap rates).
 
 ---
 
@@ -158,13 +157,13 @@ Percentage of disk space used per partition.
 ## Technical Terms
 
 ### perf_events
-Linux kernel subsystem for accessing hardware performance counters. Requires elevated privileges.
+Perf stat-based hardware counter collection (requires elevated privileges and PMU access).
 
 ### PMU (Performance Monitoring Unit)
 Hardware in the CPU that counts performance events (cache misses, cycles, instructions).
 
 ### IMC (Integrated Memory Controller)
-CPU component managing RAM access. Has counters for memory bandwidth.
+CPU component managing RAM access. Not directly used in the current perf stat-based metrics.
 
 ### psutil
 Python library for system metrics. Cross-platform abstraction over OS APIs.

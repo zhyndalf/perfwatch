@@ -125,11 +125,17 @@
 │  │ eth0: 45 connections    │ │ sda: 150 IOPS          │   │
 │  └─────────────────────────┘ └─────────────────────────┘   │
 │                                                             │
+│  ┌─────────────────────────────────────────┐              │
+│  │ Perf Stat                               │              │
+│  │ cycles: 5.0e9  instructions: 9.0e9      │              │
+│  │ [Grid: perf counters]                   │              │
+│  └─────────────────────────────────────────┘              │
+│                                                             │
 │  ┌─────────────────────────┐ ┌─────────────────────────┐   │
-│  │ Cache Performance       │ │ Advanced CPU            │   │
-│  │ [Chart: miss rates]     │ │ IPC: 1.85              │   │
-│  │                         │ │ [Chart: cycles/instr]   │   │
-│  │ L1: 1.2% L2: 8% L3: 25%│ │                         │   │
+│  │ Memory I/O              │ │ Swap Activity           │   │
+│  │ In: 120 KB/s            │ │ In: 0  Out: 0          │   │
+│  │ [Chart: vmstat rates]   │ │ [Chart: swap rates]     │   │
+│  │ pgpgout: 50 KB/s        │ │ pswpout: 0              │   │
 │  └─────────────────────────┘ └─────────────────────────┘   │
 │                                                             │
 │  Status: Connected • Last update: 2s ago                    │
@@ -156,7 +162,7 @@
 │ [Logo] PerfWatch              [Dashboard] [History] [⚙]    │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  Time Range: [▼ Last Hour ] [▼ CPU      ] [Compare ▼]      │
+│  Time Range: [▼ Last Hour ] [▼ Metric   ] [Perf Event ▼] [Compare ▼] │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                                                     │   │
@@ -179,7 +185,8 @@
 
 **Controls:**
 - Time range selector (1h, 6h, 24h, 7d, 30d)
-- Metric type selector (CPU, Memory, Network, Disk)
+- Metric type selector (CPU, Memory, Network, Disk, Perf Events, Memory Bandwidth)
+- Perf event selector (shown when metric type is Perf Events)
 - Comparison toggle (None, Yesterday, Last Week)
 
 **Charts:**
@@ -208,6 +215,13 @@
 │  │ Oldest record: Jan 1, 2025                          │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
+│  Perf Events                                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Enabled: [✓]                                        │   │
+│  │ CPU Cores: [all________________]                    │   │
+│  │ Interval (ms): [1000___________]                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
 │  Account                                                    │
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ Username: admin                                     │   │
@@ -221,7 +235,9 @@
 │                                                             │
 │  System Info                                                │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │ perf_events: ✓ Available                            │   │
+│  │ perf_events (perf stat): ✓ Available                │   │
+│  │ Perf events cores: all                              │   │
+│  │ Perf events interval: 1000 ms                       │   │
 │  │ Sampling interval: 5 seconds                        │   │
 │  │ Version: 1.0.0                                      │   │
 │  └─────────────────────────────────────────────────────┘   │
@@ -374,9 +390,9 @@ const baseChartOptions = {
 ### Metric Unavailable
 ```
 ┌─────────────────────────┐
-│ Cache Performance       │
+│ Perf Stat               │
 │                         │
-│ ℹ️ perf_events not      │
+│ ℹ️ perf stat not         │
 │   available on this     │
 │   system                │
 │                         │

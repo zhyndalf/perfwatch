@@ -9,7 +9,7 @@
 PerfWatch collects metrics in two categories:
 
 1. **Basic Metrics** - Available via psutil on any Linux system
-2. **Advanced Metrics** - Require perf_events (hardware counters)
+2. **Advanced Metrics** - Require perf stat (hardware counters)
 
 All metrics are collected every **5 seconds** and streamed via WebSocket.
 
@@ -33,13 +33,33 @@ All metrics are collected every **5 seconds** and streamed via WebSocket.
 | temperature_celsius | [°C] | psutil.sensors_temperatures() | Per-core temperature |
 | interrupts | count | /proc/interrupts | Total interrupt count |
 
-### Advanced CPU Metrics (perf_events)
+### Perf Stat Metrics (perf_events)
 
-| Metric | Unit | perf Event | Description |
-|--------|------|------------|-------------|
-| cycles | count | PERF_COUNT_HW_CPU_CYCLES | Total CPU cycles |
-| instructions | count | PERF_COUNT_HW_INSTRUCTIONS | Instructions retired |
-| ipc | ratio | instructions / cycles | Instructions per cycle |
+Perf events are collected via `perf stat -I <interval> -e <events>` and reported as raw counters.
+
+| Event | Unit | Description |
+|-------|------|-------------|
+| cpu-clock | msec | CPU time elapsed |
+| context-switches | count | Context switches |
+| cpu-migrations | count | CPU migrations |
+| page-faults | count | Page faults |
+| cycles | count | CPU cycles |
+| instructions | count | Instructions retired |
+| branches | count | Branch instructions |
+| branch-misses | count | Branch mispredictions |
+| L1-dcache-loads | count | L1 data cache loads |
+| L1-dcache-load-misses | count | L1 data cache load misses |
+| LLC-loads | count | Last level cache loads |
+| LLC-load-misses | count | Last level cache load misses |
+| L1-icache-loads | count | L1 instruction cache loads |
+| dTLB-loads | count | Data TLB loads |
+| dTLB-load-misses | count | Data TLB load misses |
+| iTLB-loads | count | Instruction TLB loads |
+| iTLB-load-misses | count | Instruction TLB load misses |
+
+Notes:
+- Requires the `perf` binary, privileged container access, and PMU support.
+- If any event is missing or unsupported, perf_events is marked unavailable.
 
 ### Collection Code (psutil)
 ```python
@@ -99,12 +119,18 @@ def collect_cpu_metrics():
 | hugepages_free | count | /proc/meminfo | Free hugepages |
 | hugepages_reserved | count | /proc/meminfo | Reserved hugepages |
 
-### Advanced Memory Metrics (perf_events)
+### Memory Bandwidth Metrics (/proc/vmstat)
 
 | Metric | Unit | Source | Description |
 |--------|------|--------|-------------|
-| memory_bandwidth_read_mbps | MB/s | IMC counters | Memory read bandwidth |
-| memory_bandwidth_write_mbps | MB/s | IMC counters | Memory write bandwidth |
+| pgpgin_per_sec | KB/s | /proc/vmstat | Pages read from disk |
+| pgpgout_per_sec | KB/s | /proc/vmstat | Pages written to disk |
+| pswpin_per_sec | pages/s | /proc/vmstat | Pages swapped in |
+| pswpout_per_sec | pages/s | /proc/vmstat | Pages swapped out |
+| page_io_bytes_per_sec | bytes/s | Calculated | Total page I/O |
+| swap_io_bytes_per_sec | bytes/s | Calculated | Total swap I/O |
+| pgfault_per_sec | faults/s | /proc/vmstat | Page faults |
+| pgmajfault_per_sec | faults/s | /proc/vmstat | Major page faults |
 
 ### Collection Code
 ```python
@@ -131,47 +157,6 @@ def collect_memory_metrics():
         "hugepages_reserved": hugepages.get('reserved', 0),
     }
 ```
-
----
-
-## Cache Metrics (perf_events)
-
-### L1 Instruction Cache
-
-| Metric | perf Event | Description |
-|--------|------------|-------------|
-| l1i_loads | L1-icache-loads | L1-I cache loads |
-| l1i_misses | L1-icache-load-misses | L1-I cache misses |
-| l1i_miss_rate | misses/loads | Miss rate percentage |
-
-### L1 Data Cache
-
-| Metric | perf Event | Description |
-|--------|------------|-------------|
-| l1d_loads | L1-dcache-loads | L1-D cache loads |
-| l1d_misses | L1-dcache-load-misses | L1-D cache misses |
-| l1d_miss_rate | misses/loads | Miss rate percentage |
-
-### L2 Cache
-
-| Metric | perf Event | Description |
-|--------|------------|-------------|
-| l2_loads | l2_rqsts.references | L2 cache references |
-| l2_misses | l2_rqsts.miss | L2 cache misses |
-| l2_miss_rate | misses/loads | Miss rate percentage |
-
-### L3/LLC Cache
-
-| Metric | perf Event | Description |
-|--------|------------|-------------|
-| llc_loads | LLC-loads | Last level cache loads |
-| llc_misses | LLC-load-misses | Last level cache misses |
-| llc_miss_rate | misses/loads | Miss rate percentage |
-
-### Cache Collection Notes
-- Requires `perf_event_paranoid` <= 1 or root privileges
-- Not all CPUs support all counters
-- Gracefully degrade if unavailable
 
 ---
 
@@ -336,36 +321,42 @@ class DiskCollector:
 ### Availability Check
 ```python
 def check_perf_available():
-    """Check if perf_events is available."""
+    """Check if perf stat is available."""
+    if shutil.which("perf") is None:
+        return False, "perf binary not found"
+
     try:
-        # Check paranoid level
         with open('/proc/sys/kernel/perf_event_paranoid', 'r') as f:
             paranoid = int(f.read().strip())
-
-        # Need paranoid <= 1 or root
         if paranoid > 1 and os.geteuid() != 0:
             return False, "perf_event_paranoid > 1 and not root"
+    except Exception:
+        pass
 
-        return True, None
-    except Exception as e:
-        return False, str(e)
+    return True, None
 ```
 
 ### Event Configuration
 ```python
-PERF_EVENTS = {
-    # Hardware events
-    'cycles': PERF_TYPE_HARDWARE | PERF_COUNT_HW_CPU_CYCLES,
-    'instructions': PERF_TYPE_HARDWARE | PERF_COUNT_HW_INSTRUCTIONS,
-
-    # Cache events
-    'L1-icache-load-misses': PERF_TYPE_HW_CACHE | L1I | MISS,
-    'L1-dcache-load-misses': PERF_TYPE_HW_CACHE | L1D | MISS,
-    'LLC-load-misses': PERF_TYPE_HW_CACHE | LLC | MISS,
-
-    # Raw events (CPU-specific, may need adjustment)
-    'l2_misses': PERF_TYPE_RAW | 0x3F24,  # Intel: l2_rqsts.miss
-}
+PERF_STAT_EVENTS = [
+    "cpu-clock",
+    "context-switches",
+    "cpu-migrations",
+    "page-faults",
+    "cycles",
+    "instructions",
+    "branches",
+    "branch-misses",
+    "L1-dcache-loads",
+    "L1-dcache-load-misses",
+    "LLC-loads",
+    "LLC-load-misses",
+    "L1-icache-loads",
+    "dTLB-loads",
+    "dTLB-load-misses",
+    "iTLB-loads",
+    "iTLB-load-misses",
+]
 ```
 
 ### Graceful Degradation
@@ -377,20 +368,19 @@ def collect_perf_metrics():
         return {
             "available": False,
             "error": error,
-            "ipc": None,
-            "cache": None,
-            "memory_bandwidth": None
+            "events": {}
         }
 
     try:
-        # Collect available metrics
-        # Some may fail on specific hardware
+        # Start perf stat subprocess and parse CSV output
+        # Missing or unsupported events mark available = False
         return {
             "available": True,
             "error": None,
-            "ipc": collect_ipc(),
-            "cache": collect_cache_metrics(),
-            "memory_bandwidth": collect_memory_bandwidth()
+            "events": {
+                "cycles": {"value": 5000000000, "unit": None},
+                "instructions": {"value": 9000000000, "unit": None},
+            }
         }
     except Exception as e:
         return {

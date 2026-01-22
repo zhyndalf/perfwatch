@@ -112,8 +112,9 @@ def _extract_primary_value(metric_type: str, metric_data: Dict[str, Any]) -> Opt
             return float(write)
         return None
     if metric_type == "perf_events":
-        value = metric_data.get("ipc")
-        return float(value) if _is_number(value) else None
+        events = metric_data.get("events") or {}
+        cpu_clock = events.get("cpu-clock", {}).get("value")
+        return float(cpu_clock) if _is_number(cpu_clock) else None
     if metric_type == "memory_bandwidth":
         value = metric_data.get("page_io_bytes_per_sec")
         return float(value) if _is_number(value) else None

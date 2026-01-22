@@ -196,7 +196,7 @@ flowchart TB
 | Backend | FastAPI + WebSocket + SQLAlchemy 2.0 |
 | Database | PostgreSQL 15 (JSONB) |
 | Auth | JWT (python-jose) + bcrypt |
-| Collectors | psutil (CPU, Memory, Network, Disk), perf_events (hardware counters) |
+| Collectors | psutil (CPU, Memory, Network, Disk), perf_events (perf stat hardware counters) |
 | Deployment | Docker Compose |
 
 ### Supported Architectures
@@ -205,7 +205,7 @@ flowchart TB
 |--------------|--------|-------|
 | x86_64 (amd64) | ✅ Full Support | Intel/AMD 64-bit processors |
 | ARM64 (aarch64) | ✅ Full Support | Raspberry Pi 4/5, AWS Graviton, Apple Silicon (Linux VMs), NVIDIA Jetson |
-| ARM32 (armv7l) | ⚠️ Limited | Older Raspberry Pi, psutil works but perf_events limited |
+| ARM32 (armv7l) | ⚠️ Limited | Older Raspberry Pi, psutil works but PMU/perf support varies |
 
 Multi-architecture Docker images are automatically built and published to GitHub Container Registry.
 
@@ -229,7 +229,7 @@ graph TB
             Memory[Memory Collector<br/>psutil]
             Network[Network Collector<br/>psutil]
             Disk[Disk Collector<br/>psutil]
-            Perf[Perf Events<br/>perf_events]
+            Perf[Perf Events<br/>perf stat]
             Bandwidth[Memory BW<br/>/proc/vmstat]
         end
     end
@@ -463,8 +463,10 @@ PerfWatch includes 6 system metrics collectors:
 | **Memory** | Total, available, used, swap, buffers, cached |
 | **Network** | Bytes sent/recv per second, packets, errors, per-interface stats |
 | **Disk** | Partition usage, I/O read/write rates, counts |
-| **Perf Events** | CPU cycles, instructions, IPC, L1/LLC cache miss rates, branch mispredictions, DTLB misses (requires perf_events support) |
+| **Perf Events** | perf stat counters (cpu-clock, context-switches, cpu-migrations, page-faults, cycles, instructions, branches, branch-misses, L1-dcache-loads, L1-dcache-load-misses, LLC-loads, LLC-load-misses, L1-icache-loads, dTLB-loads, dTLB-load-misses, iTLB-loads, iTLB-load-misses) |
 | **Memory Bandwidth** | Page I/O rates, swap activity, page faults (via /proc/vmstat) |
+
+Perf events require the `perf` binary, privileged container access, and PMU support (VMs must expose CPU performance counters). The collection core range and interval are configurable in Settings.
 
 ## API Endpoints
 

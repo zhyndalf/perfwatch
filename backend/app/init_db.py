@@ -63,7 +63,11 @@ async def create_default_config(session: AsyncSession) -> None:
         },
         {
             "key": "features",
-            "value": {"perf_events_enabled": True},
+            "value": {
+                "perf_events_enabled": settings.PERF_EVENTS_ENABLED,
+                "perf_events_cpu_cores": settings.PERF_EVENTS_CPU_CORES,
+                "perf_events_interval_ms": settings.PERF_EVENTS_INTERVAL_MS,
+            },
         },
     ]
 

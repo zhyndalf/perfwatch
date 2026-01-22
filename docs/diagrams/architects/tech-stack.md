@@ -37,7 +37,7 @@ flowchart TB
 
     subgraph DataCollection["📊 Data Collection Layer"]
         psutil["psutil<br/>System Metrics"]
-        perf["perf_events<br/>Hardware Counters"]
+        perf["perf stat<br/>Hardware Counters"]
         proc["/proc filesystem<br/>Kernel Stats"]
     end
 
@@ -65,7 +65,7 @@ flowchart TB
     end
 
     subgraph OS["🐧 Operating System Layer"]
-        Linux["Linux Kernel<br/>perf_events required"]
+        Linux["Linux Kernel<br/>perf stat required"]
     end
 
     Browser --> Vue
@@ -165,13 +165,13 @@ flowchart TB
 | Technology | Purpose | Availability |
 |------------|---------|--------------|
 | **psutil** | Cross-platform system metrics | Always available |
-| **perf_events** | Hardware performance counters | Linux only, requires privileged |
+| **perf stat** | Hardware performance counters | Linux only, requires privileged |
 | **/proc filesystem** | Kernel statistics (vmstat) | Linux only |
 
 **Key Decisions:**
 - ✅ psutil for standard metrics (CPU, memory, disk, network)
-- ✅ perf_events for advanced metrics (IPC, cache misses)
-- ✅ Graceful degradation if perf_events unavailable (permissions)
+- ✅ perf stat for raw hardware counters
+- ✅ Graceful degradation if perf stat unavailable (permissions/PMU)
 
 ---
 
@@ -232,7 +232,7 @@ flowchart TB
 - ✅ Docker Compose for simple multi-container setup
 - ✅ Python 3.11 for performance improvements over 3.10
 - ✅ Node 18 LTS for stability
-- ✅ `privileged: true` for backend container (perf_events access)
+- ✅ `privileged: true` for backend container (perf stat access)
 
 ---
 
@@ -240,7 +240,7 @@ flowchart TB
 
 | Technology | Requirement | Why |
 |------------|-------------|-----|
-| **Linux Kernel** | Required | perf_events system call (hardware counters) |
+| **Linux Kernel** | Required | perf stat + PMU access (hardware counters) |
 
 **Key Constraints:**
 - ❌ Not supported on Windows or macOS
@@ -298,7 +298,7 @@ Frontend Build:
 Backend Runtime:
   Python 3.11 → FastAPI → Uvicorn + python-jose + bcrypt
               → SQLAlchemy 2.0 → asyncpg → PostgreSQL
-              → psutil + perf_events → Linux Kernel
+              → psutil + perf stat → Linux Kernel
 
 Infrastructure:
   Docker Compose → Frontend Container (Node 18)

@@ -42,7 +42,7 @@
 |-------|------|-------|-------|------------|
 | 1 | Foundation | Project setup, Docker, DB, Auth, Basic UI | 5 | ~10 |
 | 2 | Core Metrics | Collectors, WebSocket, Dashboard | 7 | ~17 |
-| 3 | Advanced Metrics | perf_events, Cache, IPC | 5 | ~13 |
+| 3 | Advanced Metrics | perf stat counters, Memory Bandwidth | 5 | ~13 |
 | 4 | History & Polish | Storage, Comparison, Cleanup | 5 | ~12 |
 | 5 | Code Cleanup | Refactoring, Documentation, DevEx | - | ~4.5 |
 | **Total** | | | **22** | **~56.5** |
@@ -101,12 +101,12 @@
 
 ## Phase 3: Advanced Metrics
 
-**Goal**: Add hardware performance counters via perf_events.
+**Goal**: Add hardware performance counters via perf stat.
 
 **Deliverables**:
-- perf_events integration working
-- Cache miss metrics displayed
-- IPC and memory bandwidth visible
+- perf stat integration working
+- Raw perf counters displayed
+- Memory bandwidth visible
 
 **Tasks**:
 1. [T013: Perf Events Setup](./phase-3-advanced.md#t013)
@@ -116,9 +116,9 @@
 5. [T017: Advanced Dashboard](./phase-3-advanced.md#t017)
 
 **Success Criteria**:
-- [ ] perf_events reading hardware counters
+- [ ] perf stat reading hardware counters
 - [ ] Graceful degradation when unavailable
-- [ ] Dashboard shows cache/IPC/bandwidth
+- [ ] Dashboard shows perf counters/bandwidth
 - [ ] No crashes from hardware variations
 
 ---
@@ -187,7 +187,7 @@
 - Test chart rendering performance
 
 ### After Phase 3
-- Verify perf_events works in Docker
+- Verify perf stat works in Docker
 - Check graceful degradation on various CPUs
 - Validate metric accuracy
 

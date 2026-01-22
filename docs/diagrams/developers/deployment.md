@@ -23,7 +23,7 @@ graph TB
     end
 
     User[👤 User<br/>Web Browser]
-    LinuxKernel[🐧 Linux Kernel<br/>perf_events, /proc, /sys]
+    LinuxKernel[🐧 Linux Kernel<br/>perf stat, /proc, /sys]
 
     User -->|HTTP :3000| Frontend
     Frontend -->|HTTP API<br/>proxy to :8000| Backend
@@ -92,11 +92,11 @@ docker compose build frontend
 
 **Privileged Mode:** ✅ **REQUIRED**
 ```yaml
-privileged: true  # Required for perf_events access
+privileged: true  # Required for perf stat access
 ```
 
 **Why Privileged?**
-- Access to perf_event_open() system call
+- Access to perf stat binary + PMU counters
 - Required for hardware performance counter collection
 - Without it, PerfEventsCollector gracefully degrades
 
@@ -391,7 +391,7 @@ frontend:
 ### Container Security
 
 **Backend Privileged Mode:**
-- ⚠️ Required for perf_events, but increases attack surface
+- ⚠️ Required for perf stat, but increases attack surface
 - 🔒 Mitigated by running in isolated Docker network
 - ✅ Alternative: Add `CAP_PERFMON` capability instead of full privileged
 
@@ -400,7 +400,7 @@ frontend:
 backend:
   cap_add:
     - CAP_PERFMON
-    - CAP_SYS_ADMIN  # For some perf_events
+    - CAP_SYS_ADMIN  # For some PMU events
 ```
 
 **Database Access:**
@@ -497,7 +497,7 @@ docker compose exec backend env | grep DATABASE_URL
 
 ---
 
-### perf_events Not Working
+### perf stat Not Working
 
 **Check privileged mode:**
 ```bash
@@ -508,7 +508,7 @@ docker compose config | grep privileged
 
 **Test manually:**
 ```bash
-docker compose exec backend python -c "from app.collectors.perf_events import PerfEventsCollector; import asyncio; print(asyncio.run(PerfEventsCollector().collect()))"
+docker compose exec backend perf stat -e cycles,instructions -a sleep 1
 ```
 
 ---

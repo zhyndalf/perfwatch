@@ -173,7 +173,7 @@ docker compose logs backend | grep "Retention cleanup"
 | Database | PostgreSQL 15 (JSONB for metrics) |
 | ORM | SQLAlchemy 2.0 (async) |
 | Auth | JWT (python-jose) + bcrypt |
-| Collectors | psutil + perf_events (Linux) |
+| Collectors | psutil + perf_events (perf stat, Linux) |
 | Deployment | Docker Compose |
 | Testing | pytest + pytest-asyncio + httpx |
 
@@ -195,7 +195,7 @@ docker compose logs backend | grep "Retention cleanup"
 ```
 
 **Data Flow**:
-1. Linux Kernel → psutil/perf_events
+1. Linux Kernel → psutil/perf stat
 2. Collectors → Aggregator (every 5s)
 3. Aggregator → Database (metrics_snapshot table)
 4. Aggregator → WebSocket → Frontend (live updates)
@@ -224,7 +224,7 @@ docker compose logs backend | grep "Retention cleanup"
 | **TDD Approach** | Write tests alongside implementation, 238 tests total |
 
 **Explicitly Won't Support**:
-- Windows or macOS (Linux-only via perf_events)
+- Windows or macOS (Linux-only via perf)
 - Remote monitoring (localhost only)
 - Multiple users (single admin)
 - Custom metrics or plugins
@@ -258,7 +258,7 @@ perfwatch/
 │   │   │   ├── memory.py        # Memory, swap usage
 │   │   │   ├── network.py       # Network I/O, interfaces
 │   │   │   ├── disk.py          # Disk usage, I/O
-│   │   │   ├── perf_events.py   # Hardware counters (IPC, cache)
+│   │   │   ├── perf_events.py   # Hardware counters (perf stat)
 │   │   │   └── memory_bandwidth.py  # Page I/O, swap activity
 │   │   ├── models/
 │   │   │   ├── user.py          # User model (auth)
@@ -328,7 +328,7 @@ class MyCollector(BaseCollector):
 | **MemoryCollector** | total, available, used, swap, buffers, cached | Always |
 | **NetworkCollector** | bytes_sent/recv per sec, packets, errors, per-interface | Always |
 | **DiskCollector** | partition usage, read/write bytes per sec, I/O counts | Always |
-| **PerfEventsCollector** | cycles, instructions, IPC, L1/LLC cache miss %, branch mispredict %, DTLB misses | Linux perf_events only |
+| **PerfEventsCollector** | perf stat counters (cpu-clock, context-switches, cpu-migrations, page-faults, cycles, instructions, branches, branch-misses, L1-dcache-loads, L1-dcache-load-misses, LLC-loads, LLC-load-misses, L1-icache-loads, dTLB-loads, dTLB-load-misses, iTLB-loads, iTLB-load-misses) | Linux perf + PMU only |
 | **MemoryBandwidthCollector** | page in/out per sec, swap in/out per sec, page faults | /proc/vmstat only |
 
 **Usage in aggregator:**
@@ -430,8 +430,8 @@ docker compose run --rm backend pytest tests/ --cov=app
 6. **WebSocket for real-time**: HTTP polling too inefficient for 5s updates
 7. **Background tasks**: Metrics collection + retention cleanup in asyncio tasks
 8. **JWT in query param for WS**: No header support in browser WebSocket API
-9. **Graceful degradation**: perf_events may fail (permissions, kernel), show "N/A"
-10. **Docker privileged mode**: Required for perf_events access on Linux
+9. **Graceful degradation**: perf stat may fail (permissions, kernel/PMU), show "N/A"
+10. **Docker privileged mode**: Required for perf access on Linux
 
 ---
 
@@ -508,7 +508,7 @@ RETENTION_CLEANUP_INTERVAL_MINUTES=60
 1. **Migrations must run before backend**: Backend crashes if tables don't exist
    - Solution: `docker compose exec backend alembic upgrade head`
 
-2. **perf_events requires privileged mode**: `docker-compose.yml` has `privileged: true`
+2. **perf requires privileged mode**: `docker-compose.yml` has `privileged: true`
    - Without it, hardware counters unavailable (gracefully degrades)
 
 3. **CPU percent needs priming**: First `psutil.cpu_percent()` call returns 0

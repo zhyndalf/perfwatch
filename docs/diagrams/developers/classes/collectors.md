@@ -62,10 +62,10 @@ classDiagram
     class PerfEventsCollector {
         +name = "perf_events"
         +collect() dict
-        -setup_perf_events() bool
-        -read_perf_counters() dict
-        -calculate_ipc() float
-        -calculate_cache_miss_percent() float
+        -build_command() list
+        -ensure_process() void
+        -read_loop() void
+        -finalize_sample() void
     }
 
     class MemoryBandwidthCollector {
@@ -362,70 +362,48 @@ class CPUCollector(BaseCollector):
 ### PerfEventsCollector
 
 **Metrics Collected:**
-- CPU cycles and instructions
-- Instructions Per Cycle (IPC)
-- L1/LLC cache references and misses
-- Cache miss percentage
-- Branch instructions and mispredictions
-- DTLB (Data TLB) misses
+- perf stat raw counters (cpu-clock, context-switches, cpu-migrations, page-faults, cycles, instructions, branches, branch-misses, L1-dcache-loads, L1-dcache-load-misses, LLC-loads, LLC-load-misses, L1-icache-loads, dTLB-loads, dTLB-load-misses, iTLB-loads, iTLB-load-misses)
 
-**Data Source:** Linux perf_events (via perf_event_open syscall)
+**Data Source:** perf stat (`perf stat -I` streaming)
 
 **Availability:**
 - ✅ Linux only
-- ⚠️ Requires privileged mode or CAP_PERFMON capability
-- ❌ Returns None if unavailable (graceful degradation)
+- ⚠️ Requires privileged mode or CAP_PERFMON capability and PMU access
+- ✅ Returns `available: false` with error details if unavailable
 
 **Return Format:**
 ```python
 {
-    "cycles": 5000000000,
-    "instructions": 9000000000,
-    "ipc": 1.8,
-    "cache_references": 100000,
-    "cache_misses": 5000,
-    "cache_miss_percent": 5.0,
-    "branch_instructions": 2000000,
-    "branch_misses": 100000,
-    "branch_miss_percent": 5.0,
-    "dtlb_load_misses": 50000
+    "available": True,
+    "cpu_cores": "all",
+    "interval_ms": 1000,
+    "sample_time": "1.000123",
+    "events": {
+        "cycles": {"value": 5000000000, "unit": None},
+        "instructions": {"value": 9000000000, "unit": None},
+        "cpu-clock": {"value": 1000.12, "unit": "msec"}
+    }
 }
 ```
 
+**Notes:**
+- If any events are missing or unsupported, `available` is false and lists appear under `missing_events` or `unsupported_events`.
+
 **Key Implementation:**
 ```python
-import ctypes
-import os
-
 class PerfEventsCollector(BaseCollector):
     name = "perf_events"
 
     async def collect(self):
-        if not self._can_access_perf():
-            return None  # Graceful degradation
+        await self._ensure_process(cpu_cores, interval_ms)
+        return self._latest or {"available": True, "events": {}}
 
-        # Open perf_event file descriptors
-        cycles_fd = self._perf_event_open(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES)
-        instructions_fd = self._perf_event_open(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS)
-
-        # Read counters
-        cycles = self._read_counter(cycles_fd)
-        instructions = self._read_counter(instructions_fd)
-
-        return {
-            "cycles": cycles,
-            "instructions": instructions,
-            "ipc": instructions / cycles if cycles > 0 else 0,
-            # ...
-        }
-
-    def _can_access_perf(self):
-        try:
-            fd = self._perf_event_open(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES)
-            os.close(fd)
-            return True
-        except:
-            return False
+    def _build_command(self, cpu_cores, interval_ms):
+        return [
+            "perf", "stat", "-I", str(interval_ms),
+            "-x", ",", "--no-big-num", "-a",
+            "-e", ",".join(PERF_STAT_EVENTS),
+        ]
 ```
 
 ---
@@ -578,23 +556,22 @@ async def safe_collect(self):
 
 ### Permission Errors
 
-**Scenario:** PerfEventsCollector can't access perf_events (not privileged)
+**Scenario:** PerfEventsCollector can't access perf stat (not privileged or PMU not exposed)
 
 **Behavior:**
 ```python
 # PerfEventsCollector.collect()
-if not self._can_access_perf():
-    return None  # Entire collector returns None
+if not perf_available:
+    return {"available": False, "error": "perf stat unavailable"}
 
 # Aggregator
 data = await collector.safe_collect()
-if data is not None:
-    result[collector.name] = data  # Skip if None
+result[collector.name] = data
 ```
 
 **Result:**
-- `perf_events` key not in snapshot
-- Frontend shows "N/A" for all perf metrics
+- `perf_events.available` is false in the snapshot
+- Frontend shows "Hardware Performance Counters Unavailable"
 - No crash or error to user
 
 ---

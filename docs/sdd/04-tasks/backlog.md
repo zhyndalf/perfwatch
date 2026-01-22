@@ -24,11 +24,11 @@ Detailed task files will be created when Phase 1 is complete.
 
 | Task ID | Name | Brief Description |
 |---------|------|-------------------|
-| T013 | Perf Events Setup | perf_event_open wrapper |
-| T014 | Cache Metrics | L1/L2/L3 cache miss rates |
-| T015 | CPU Perf Metrics | IPC, cycles, instructions |
-| T016 | Memory Bandwidth | DDR read/write rates |
-| T017 | Advanced Dashboard | Add perf metrics to UI |
+| T013 | Perf Events Setup | perf stat integration |
+| T014 | Cache Metrics | L1/LLC cache and TLB counters |
+| T015 | CPU Perf Metrics | cycles, instructions, branches |
+| T016 | Memory Bandwidth | /proc/vmstat rates |
+| T017 | Advanced Dashboard | Add perf counters to UI |
 
 Detailed task files will be created when Phase 2 is complete.
 

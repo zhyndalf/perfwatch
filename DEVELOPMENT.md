@@ -24,7 +24,8 @@ This guide provides detailed information for developing and debugging PerfWatch.
 
 - **Docker Desktop** (v24.0+) & Docker Compose
 - **Git**
-- **Linux Host** (for perf_events support)
+- **Linux Host** (for perf stat + PMU support; VMs need PMU passthrough)
+- **perf** (linux-perf or linux-tools) for perf_events counters
 
 ### Optional (for local development without Docker)
 
@@ -74,6 +75,9 @@ export DATABASE_URL="postgresql+asyncpg://perfwatch:perfwatch@localhost:5432/per
 export JWT_SECRET="your-secret-key"
 export ADMIN_USERNAME="admin"
 export ADMIN_PASSWORD="admin123"
+export PERF_EVENTS_ENABLED="true"
+export PERF_EVENTS_CPU_CORES="all"
+export PERF_EVENTS_INTERVAL_MS="1000"
 
 # Run migrations
 alembic upgrade head

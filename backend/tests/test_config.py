@@ -44,6 +44,8 @@ class TestConfigEndpoints:
         data = response.json()
         assert "sampling_interval_seconds" in data
         assert "perf_events_enabled" in data
+        assert "perf_events_cpu_cores" in data
+        assert "perf_events_interval_ms" in data
         assert "retention_days" in data
         assert "downsample_after_days" in data
         assert "downsample_interval" in data

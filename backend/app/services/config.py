@@ -11,7 +11,11 @@ from app.models import Config
 
 DEFAULT_CONFIGS: Dict[str, Dict[str, Any]] = {
     "sampling": {"interval_seconds": settings.SAMPLING_INTERVAL_SECONDS},
-    "features": {"perf_events_enabled": True},
+    "features": {
+        "perf_events_enabled": settings.PERF_EVENTS_ENABLED,
+        "perf_events_cpu_cores": settings.PERF_EVENTS_CPU_CORES,
+        "perf_events_interval_ms": settings.PERF_EVENTS_INTERVAL_MS,
+    },
 }
 
 
@@ -38,6 +42,8 @@ async def update_config_values(
     *,
     sampling_interval_seconds: Optional[int] = None,
     perf_events_enabled: Optional[bool] = None,
+    perf_events_cpu_cores: Optional[str] = None,
+    perf_events_interval_ms: Optional[int] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Update config values and return the updated configs."""
     sampling = await _get_or_create_config(session, "sampling")
@@ -55,6 +61,22 @@ async def update_config_values(
             **(features.value or {}),
             "perf_events_enabled": perf_events_enabled,
         }
+        settings.PERF_EVENTS_ENABLED = perf_events_enabled
+
+    if perf_events_cpu_cores is not None:
+        perf_events_cpu_cores = perf_events_cpu_cores.strip()
+        features.value = {
+            **(features.value or {}),
+            "perf_events_cpu_cores": perf_events_cpu_cores,
+        }
+        settings.PERF_EVENTS_CPU_CORES = perf_events_cpu_cores
+
+    if perf_events_interval_ms is not None:
+        features.value = {
+            **(features.value or {}),
+            "perf_events_interval_ms": perf_events_interval_ms,
+        }
+        settings.PERF_EVENTS_INTERVAL_MS = perf_events_interval_ms
 
     await session.commit()
     await session.refresh(sampling)

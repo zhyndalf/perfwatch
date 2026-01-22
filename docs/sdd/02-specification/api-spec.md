@@ -165,17 +165,16 @@ WebSocket endpoint for real-time metric streaming.
         }
       }
     },
-    "perf": {
+    "perf_events": {
       "available": true,
-      "ipc": 1.85,
-      "cycles": 3200000000,
-      "instructions": 5920000000,
-      "l1i_cache_misses": 12500,
-      "l1d_cache_misses": 45000,
-      "l2_cache_misses": 8000,
-      "llc_misses": 2500,
-      "memory_bandwidth_read_mbps": 12500,
-      "memory_bandwidth_write_mbps": 8000
+      "cpu_cores": "all",
+      "interval_ms": 1000,
+      "sample_time": "1.000123",
+      "events": {
+        "cycles": { "value": 3200000000, "unit": null },
+        "instructions": { "value": 5920000000, "unit": null },
+        "branch-misses": { "value": 12000, "unit": null }
+      }
     }
   }
 }

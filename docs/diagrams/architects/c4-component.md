@@ -278,7 +278,7 @@ async def lifespan(app: FastAPI):
 - **MemoryCollector:** psutil.virtual_memory(), swap_memory()
 - **NetworkCollector:** psutil.net_io_counters(), per_interface stats
 - **DiskCollector:** psutil.disk_usage(), disk_io_counters()
-- **PerfEventsCollector:** perf_event_open() for hardware counters
+- **PerfEventsCollector:** perf stat for hardware counters
 - **MemoryBandwidthCollector:** /proc/vmstat parsing
 
 ---

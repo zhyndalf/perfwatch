@@ -15,7 +15,7 @@ This guide walks you through deploying PerfWatch on a bare Linux machine from sc
 - **Privileges**: Root or sudo access
 
 ### Why Linux Only?
-PerfWatch uses Linux `perf_events` for hardware performance counters (IPC, cache misses, etc.). This feature is not available on Windows or macOS.
+PerfWatch uses Linux `perf stat` (the `perf` binary) for hardware performance counters. This feature is not available on Windows or macOS.
 
 ---
 
@@ -63,7 +63,7 @@ docker compose exec backend alembic upgrade head
 
 ### ARM64-Specific Notes
 
-1. **perf_events Support**: Fully supported on ARM64 (uses syscall 241 for aarch64)
+1. **perf stat Support**: Depends on PMU exposure and kernel config
    - May require `CONFIG_ARM_PMU=y` in kernel config
    - Available counters vary by SoC (Cortex-A72, A76, X1, etc.)
    - Raspberry Pi 4/5 has full PMU support
@@ -73,7 +73,7 @@ docker compose exec backend alembic upgrade head
    - May show "N/A" on some ARM boards without thermal sensors
 
 3. **Performance Expectations**: Similar to x86_64
-   - IPC values differ due to ARM architecture characteristics
+   - Perf stat counters vary by ARM PMU/SoC
    - Cache sizes/levels vary by processor
    - All psutil-based metrics work identically
 
@@ -105,15 +105,9 @@ uname -m
 docker compose exec backend uname -m
 # Expected: aarch64
 
-# Test perf_events detection
-docker compose exec backend python -c "
-from app.collectors.perf_events import _get_arch, _SYSCALL_PERF_EVENT_OPEN
-arch = _get_arch()
-syscall = _SYSCALL_PERF_EVENT_OPEN.get(arch)
-print(f'Architecture: {arch}')
-print(f'Syscall number: {syscall}')
-"
-# Expected: Architecture: aarch64, Syscall number: 241
+# Test perf stat counters
+docker compose exec backend perf stat -e cycles,instructions -a sleep 1
+# Expected: Non-zero values. If <not supported>, PMU is not exposed.
 ```
 
 ---
@@ -286,7 +280,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    privileged: true  # Required for perf_events
+    privileged: true  # Required for perf
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
@@ -649,10 +643,13 @@ sudo docker compose logs db
 sudo docker compose exec db psql -U perfwatch_prod -d perfwatch -c "SELECT 1;"
 ```
 
-### perf_events Not Working
+### perf stat Not Working
 ```bash
 # Check if privileged mode is enabled in docker-compose.yml
 grep "privileged" docker-compose.yml
+
+# Check perf binary
+docker compose exec backend which perf
 
 # Check kernel support
 cat /proc/sys/kernel/perf_event_paranoid
@@ -661,6 +658,10 @@ sudo sysctl -w kernel.perf_event_paranoid=1
 
 # Make permanent
 echo "kernel.perf_event_paranoid=1" | sudo tee -a /etc/sysctl.conf
+
+# Validate perf counters (non-zero values required)
+perf stat -e cycles,instructions -a sleep 1
+# If counters are <not supported>, your VM/hypervisor is not exposing PMU.
 ```
 
 ### Frontend Can't Connect to Backend

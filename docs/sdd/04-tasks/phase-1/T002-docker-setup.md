@@ -25,7 +25,7 @@ Docker Compose provides:
 - Service orchestration
 - Environment variable management
 
-The backend container needs `--privileged` for perf_events access.
+The backend container needs `--privileged` for perf stat access.
 
 ---
 
@@ -98,7 +98,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    privileged: true  # Required for perf_events
+    privileged: true  # Required for perf stat
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-perfwatch}:${POSTGRES_PASSWORD:-perfwatch}@db:5432/${POSTGRES_DB:-perfwatch}
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}

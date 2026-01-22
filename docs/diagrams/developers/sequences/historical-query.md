@@ -252,7 +252,7 @@ LIMIT 1000;
 ```
 
 **Aggregation Functions:**
-- **AVG:** CPU %, memory %, IPC, cache miss %
+- **AVG:** CPU %, memory %, selected perf event
 - **SUM:** Network bytes, disk I/O (cumulative counters)
 - **MAX:** Temperature, peak values
 - **MIN:** Available memory (show worst case)

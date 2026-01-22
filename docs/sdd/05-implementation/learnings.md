@@ -33,7 +33,7 @@ Document things learned during implementation that might be useful later:
 ### SQLAlchemy
 - (Learnings about async ORM usage)
 
-### perf_events
+### perf stat
 - (Learnings about hardware counters)
 
 ---
@@ -61,7 +61,7 @@ Document things learned during implementation that might be useful later:
 - (Learnings about service orchestration)
 
 ### Privileged Mode
-- (Learnings about perf_events access)
+- (Learnings about perf stat access)
 
 ---
 
@@ -115,4 +115,4 @@ Document things learned during implementation that might be useful later:
 - [Vue 3 Composition API](https://vuejs.org/guide/extras/composition-api-faq.html)
 - [ECharts Documentation](https://echarts.apache.org/en/option.html)
 - [psutil Documentation](https://psutil.readthedocs.io/en/latest/)
-- [perf_event_open man page](https://man7.org/linux/man-pages/man2/perf_event_open.2.html)
+- [perf-stat man page](https://man7.org/linux/man-pages/man1/perf-stat.1.html)

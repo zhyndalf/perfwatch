@@ -11,7 +11,7 @@
 
 ## Overview
 
-Implement Linux perf_events integration for hardware performance counters. This is the foundation for Phase 3 (Advanced Metrics) and enables cache miss, IPC, and memory bandwidth metrics in subsequent tasks.
+Implement perf stat integration for hardware performance counters. This is the foundation for Phase 3 (Advanced Metrics) and enables raw perf counters in the dashboard and history views.
 
 ---
 
@@ -21,18 +21,17 @@ Implement Linux perf_events integration for hardware performance counters. This 
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-1 | Detect if perf_events is available on the system | Must |
-| FR-2 | Collect CPU cycles count when available | Must |
-| FR-3 | Collect instructions count when available | Must |
-| FR-4 | Calculate IPC (Instructions Per Cycle) | Must |
-| FR-5 | Return `{"available": False}` when perf_events unavailable | Must |
-| FR-6 | Integrate with WebSocket streaming | Must |
+| FR-1 | Detect if perf stat is available on the system | Must |
+| FR-2 | Collect configured perf stat events when available | Must |
+| FR-3 | Support configurable CPU core list and interval | Must |
+| FR-4 | Return `{"available": False}` when any event is missing/unsupported | Must |
+| FR-5 | Integrate with WebSocket streaming | Must |
 
 ### Non-Functional Requirements
 
 | ID | Requirement |
 |----|-------------|
-| NFR-1 | No external Python dependencies (use ctypes) |
+| NFR-1 | No external Python dependencies (use asyncio subprocess) |
 | NFR-2 | Graceful degradation on permission errors |
 | NFR-3 | No crashes in Docker containers without perf access |
 | NFR-4 | Follow existing BaseCollector pattern |
@@ -43,49 +42,56 @@ Implement Linux perf_events integration for hardware performance counters. This 
 
 ### Approach
 
-Use Python's `ctypes` library to directly invoke the `perf_event_open` syscall. This avoids external dependencies and gives full control over the perf_events interface.
+Use `perf stat -I` as a subprocess and parse its CSV output. This avoids low-level syscall bindings
+and tracks hardware counters through the supported perf interface.
 
 ### Key Components
 
-1. **perf_event_attr Structure**: C struct definition matching kernel headers
-2. **Syscall Wrapper**: Direct syscall via `ctypes.CDLL(None).syscall`
-3. **Availability Detection**:
-   - Check `/proc/sys/kernel/perf_event_paranoid` exists
-   - Attempt test syscall to verify permissions
-4. **Counter Reading**: Read file descriptor to get counter values
+1. **Command Builder**: `perf stat -I <interval> -x , --no-big-num -a -e <events> [-C <cores>]`
+2. **Streaming Reader**: Async read loop to consume perf output continuously
+3. **CSV Parser**: Parse `<time>,<value>,<unit>,<event>` lines into events map
+4. **Availability Detection**:
+   - Check `perf` binary exists
+   - Track missing or unsupported events per sample
+5. **Snapshot Assembly**: Build `{available, cpu_cores, interval_ms, events}` payloads
 
 ### Hardware Events
 
-| Event | Constant | Description |
-|-------|----------|-------------|
-| CPU Cycles | `PERF_COUNT_HW_CPU_CYCLES` (0) | Total CPU cycles |
-| Instructions | `PERF_COUNT_HW_INSTRUCTIONS` (1) | Retired instructions |
+perf stat events collected:
 
-### perf_event_open Syscall
+- cpu-clock
+- context-switches
+- cpu-migrations
+- page-faults
+- cycles
+- instructions
+- branches
+- branch-misses
+- L1-dcache-loads
+- L1-dcache-load-misses
+- LLC-loads
+- LLC-load-misses
+- L1-icache-loads
+- dTLB-loads
+- dTLB-load-misses
+- iTLB-loads
+- iTLB-load-misses
 
-```c
-// Syscall signature
-int perf_event_open(struct perf_event_attr *attr,
-                    pid_t pid,
-                    int cpu,
-                    int group_fd,
-                    unsigned long flags);
+### perf stat Command
 
-// Parameters used:
-// pid = 0 (current process)
-// cpu = -1 (any CPU)
-// group_fd = -1 (no group leader)
-// flags = 0
+```bash
+perf stat -I 1000 -x , --no-big-num -a -e cycles,instructions,branches
 ```
 
 ### Graceful Degradation
 
 | Condition | Response |
 |-----------|----------|
-| `/proc/sys/kernel/perf_event_paranoid` not found | `{"available": False}` |
-| `perf_event_open` returns EACCES/EPERM | `{"available": False}` |
-| Running in unprivileged container | `{"available": False}` |
-| Syscall succeeds | Full metrics collection |
+| `perf` binary missing | `{"available": False, "error": "perf binary not found"}` |
+| perf permission denied (`perf_event_paranoid` too high) | `{"available": False}` |
+| Unsupported/missing event names | `{"available": False, "missing_events": [...]}` |
+| perf stat stops unexpectedly | `{"available": False, "error": "perf stat stopped"}` |
+| perf stat running and all events present | Full metrics collection |
 
 ---
 
@@ -104,12 +110,11 @@ int perf_event_open(struct perf_event_attr *attr,
 ## Acceptance Criteria
 
 - [x] PerfEventsCollector follows BaseCollector pattern
-- [x] `is_available()` correctly detects perf_events availability
-- [x] Collects cycles and instructions when available
-- [x] Calculates IPC (instructions / cycles)
-- [x] Returns `{"available": False}` when unavailable (no crash)
+- [x] Detects perf stat availability and permissions
+- [x] Collects configured perf stat events when available
+- [x] Returns `{"available": False}` when events are missing or unsupported
 - [x] Integrated with WebSocket streaming
-- [x] All tests pass (including graceful degradation) - 26 tests
+- [x] All tests pass (including graceful degradation)
 - [x] Works in Docker (or degrades gracefully)
 
 ---
@@ -118,10 +123,10 @@ int perf_event_open(struct perf_event_attr *attr,
 
 ### Unit Tests
 
-1. `test_availability_detection` - Verify `is_available()` works
+1. `test_parse_perf_stat_line` - Parse perf stat CSV lines
 2. `test_collect_when_unavailable` - Returns `{"available": False}`
-3. `test_collect_when_available` - Returns cycles/instructions/ipc (mocked)
-4. `test_graceful_error_handling` - No crashes on permission errors
+3. `test_collect_when_available` - Returns events map (mocked)
+4. `test_collect_missing_events` - Marks unavailable with missing events
 5. `test_disabled_collector` - Respects enabled flag
 6. `test_collector_name` - Has correct name attribute
 
@@ -134,30 +139,23 @@ int perf_event_open(struct perf_event_attr *attr,
 
 ```bash
 # In Docker container
-docker compose exec backend python -c "
-from app.collectors.perf_events import PerfEventsCollector
-import asyncio
-c = PerfEventsCollector()
-print('Available:', c.is_available())
-print(asyncio.run(c.collect()))
-"
+docker compose exec backend perf stat -e cycles,instructions -a sleep 1
 
 # Compare with host perf (if available)
-perf stat -e cycles,instructions sleep 1
+perf stat -e cycles,instructions -a sleep 1
 ```
 
 ---
 
 ## References
 
-- [Linux perf_event_open man page](https://man7.org/linux/man-pages/man2/perf_event_open.2.html)
-- [Kernel perf_event.h](https://github.com/torvalds/linux/blob/master/include/uapi/linux/perf_event.h)
+- [perf-stat man page](https://man7.org/linux/man-pages/man1/perf-stat.1.html)
 - [perf_event_paranoid settings](https://www.kernel.org/doc/html/latest/admin-guide/perf-security.html)
 
 ---
 
 ## Notes
 
-- perf_events requires special permissions (CAP_PERFMON or CAP_SYS_ADMIN) or `perf_event_paranoid <= 2`
+- perf stat requires special permissions (CAP_PERFMON or CAP_SYS_ADMIN) or `perf_event_paranoid <= 2`
 - Docker containers may need `--privileged` flag or specific capabilities
-- ARM and x86 have different event semantics but CYCLES/INSTRUCTIONS are universal
+- VM environments need PMU passthrough to expose counters

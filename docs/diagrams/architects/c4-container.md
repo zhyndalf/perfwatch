@@ -37,12 +37,12 @@ flowchart TB
         Collectors["📊 Metrics Collectors
         Background Tasks
 
-        psutil, perf_events,
+        psutil, perf stat,
         6 collector modules"]
     end
 
     LinuxKernel["🐧 Linux Kernel
-    /proc, /sys, perf_events"]
+    /proc, /sys, perf stat"]
 
     User -->|HTTPS/HTTP<br/>Views UI| Frontend
     Frontend -->|HTTP REST API<br/>JSON| Backend
@@ -138,7 +138,7 @@ flowchart TB
 ---
 
 ### Collectors: Metrics Collection Modules
-**Technology:** Python, psutil, perf_events, asyncio
+**Technology:** Python, psutil, perf stat, asyncio
 **Responsibilities:**
 - Collect system metrics from Linux kernel
 - Provide graceful degradation (return None if unavailable)
@@ -150,11 +150,11 @@ flowchart TB
 2. **MemoryCollector:** RAM/swap usage, buffers, cached
 3. **NetworkCollector:** Bytes/packets sent/recv, per-interface stats
 4. **DiskCollector:** Partition usage, read/write I/O
-5. **PerfEventsCollector:** IPC, cache misses, branch mispredictions (requires privileged)
+5. **PerfEventsCollector:** perf stat raw counters (requires privileged/PMU)
 6. **MemoryBandwidthCollector:** Page I/O, swap activity from /proc/vmstat
 
 **Communication:**
-- **→ Linux Kernel:** Read /proc, /sys, perf_events
+- **→ Linux Kernel:** Read /proc, /sys, perf stat
 - **← Backend (Aggregator):** Coordinated via `collect_all()` method
 
 ---
@@ -196,11 +196,11 @@ flowchart TB
 
 ### Collectors ↔ Linux Kernel
 
-**Protocol:** System calls via psutil and perf_events
+**Protocol:** System calls via psutil and perf stat subprocess
 **Access:**
 - `/proc/stat`, `/proc/meminfo`, `/proc/vmstat` - Kernel statistics
 - `/sys/class/thermal/` - CPU temperature
-- `perf_event_open()` syscall - Hardware performance counters (requires CAP_PERFMON or privileged mode)
+- `perf stat` binary - Hardware performance counters (requires CAP_PERFMON or privileged mode)
 
 ---
 
@@ -218,7 +218,7 @@ services:
   backend:
     build: ./backend
     ports: 8000:8000
-    privileged: true  # Required for perf_events
+    privileged: true  # Required for perf stat
     depends_on: db
 
   db:
@@ -228,7 +228,7 @@ services:
 ```
 
 **Key Configuration:**
-- Backend requires `privileged: true` for perf_events access
+- Backend requires `privileged: true` for perf stat access
 - Frontend proxies API requests to backend in development
 - Database persists data in Docker volume
 
