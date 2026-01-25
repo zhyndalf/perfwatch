@@ -269,6 +269,16 @@ import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } f
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { useHistoryStore } from '@/stores/history'
+import { formatBytes, formatPerfValueWithUnit } from '@/utils/formatters'
+import {
+  buildCpuHistoryChart,
+  buildMemoryHistoryChart,
+  buildNetworkHistoryChart,
+  buildDiskHistoryChart,
+  buildPerfEventsHistoryChart,
+  buildMemoryBandwidthHistoryChart,
+  buildDefaultHistoryChart,
+} from '@/utils/chartFactory'
 
 use([GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, LineChart, CanvasRenderer])
 
@@ -409,17 +419,6 @@ function formatRange(dataset) {
   return `${start.toLocaleString()} - ${end.toLocaleString()}`
 }
 
-function formatBytes(value) {
-  if (value === null || value === undefined) return 'N/A'
-  const bytes = Number(value)
-  if (Number.isNaN(bytes)) return 'N/A'
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const num = bytes / 1024 ** i
-  return `${num.toFixed(num >= 10 ? 0 : 1)} ${units[i]}`
-}
-
 function formatValue(value) {
   if (value === null || value === undefined) return 'N/A'
   if (metricType.value === 'cpu' || metricType.value === 'memory') {
@@ -429,17 +428,9 @@ function formatValue(value) {
     return formatBytes(value) + '/s'
   }
   if (metricType.value === 'perf_events') {
-    return formatPerfValue(value, perfEventUnit.value)
+    return formatPerfValueWithUnit(value, perfEventUnit.value)
   }
   return value.toFixed(2)
-}
-
-function formatPerfValue(value, unit) {
-  const number = Number(value)
-  if (Number.isNaN(number)) return 'N/A'
-  const decimals = Number.isInteger(number) ? 0 : 2
-  const suffix = unit ? ` ${unit}` : ''
-  return `${number.toFixed(decimals)}${suffix}`
 }
 
 function getPerfEventValue(point, eventName) {
@@ -457,229 +448,21 @@ function getPerfEventUnit(points, eventName) {
 }
 
 function buildDatasetOptions(points, type, label, perfEvent) {
-  const timestamps = points.map((point) => new Date(point.timestamp).toLocaleTimeString())
-  const baseOptions = {
-    grid: { left: 64, right: 32, top: 40, bottom: 80, containLabel: true },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(30, 30, 35, 0.95)',
-      borderColor: '#3b3b45',
-      textStyle: { color: '#f8fafc' },
-    },
-    xAxis: {
-      type: 'category',
-      data: timestamps,
-      axisLabel: { color: '#e2e8f0', rotate: 45, margin: 12 },
-      axisLine: { lineStyle: { color: '#475569' } },
-    },
-    dataZoom: [
-      { type: 'inside', start: 0, end: 100 },
-      {
-        type: 'slider',
-        start: 0,
-        end: 100,
-        height: 20,
-        bottom: 10,
-        borderColor: '#3b3b45',
-        backgroundColor: '#1a1a1f',
-        fillerColor: 'rgba(59, 130, 246, 0.2)',
-        handleStyle: { color: '#3b82f6' },
-        textStyle: { color: '#e2e8f0' },
-      },
-    ],
-    legend: { textStyle: { color: '#e2e8f0' } },
-  }
-
-  if (type === 'cpu') {
-    return {
-      ...baseOptions,
-      yAxis: {
-        type: 'value',
-        max: 100,
-        axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
-        splitLine: { lineStyle: { color: '#334155' } },
-        axisLine: { lineStyle: { color: '#475569' } },
-      },
-      series: [
-        {
-          name: `${label} CPU Usage`,
-          type: 'line',
-          showSymbol: false,
-          areaStyle: { opacity: 0.15, color: '#3b82f6' },
-          lineStyle: { color: '#3b82f6', width: 2 },
-          data: points.map((point) => point.data?.usage_percent ?? null),
-        },
-      ],
-    }
-  }
-
-  if (type === 'memory') {
-    return {
-      ...baseOptions,
-      yAxis: {
-        type: 'value',
-        max: 100,
-        axisLabel: { formatter: '{value}%', color: '#e2e8f0', margin: 10 },
-        splitLine: { lineStyle: { color: '#334155' } },
-        axisLine: { lineStyle: { color: '#475569' } },
-      },
-      series: [
-        {
-          name: `${label} Memory Usage`,
-          type: 'line',
-          showSymbol: false,
-          areaStyle: { opacity: 0.15, color: '#22c55e' },
-          lineStyle: { color: '#22c55e', width: 2 },
-          data: points.map((point) => point.data?.usage_percent ?? null),
-        },
-      ],
-    }
-  }
-
-  if (type === 'network') {
-    return {
-      ...baseOptions,
-      legend: {
-        data: ['Download', 'Upload'],
-        textStyle: { color: '#e2e8f0' },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { formatter: (val) => formatBytes(val) + '/s', color: '#e2e8f0', margin: 10 },
-        splitLine: { lineStyle: { color: '#334155' } },
-        axisLine: { lineStyle: { color: '#475569' } },
-      },
-      series: [
-        {
-          name: 'Download',
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#a855f7', width: 2 },
-          data: points.map((point) => point.data?.bytes_recv_per_sec ?? null),
-        },
-        {
-          name: 'Upload',
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#06b6d4', width: 2 },
-          data: points.map((point) => point.data?.bytes_sent_per_sec ?? null),
-        },
-      ],
-    }
-  }
-
-  if (type === 'disk') {
-    return {
-      ...baseOptions,
-      legend: {
-        data: ['Read', 'Write'],
-        textStyle: { color: '#e2e8f0' },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { formatter: (val) => formatBytes(val) + '/s', color: '#e2e8f0', margin: 10 },
-        splitLine: { lineStyle: { color: '#334155' } },
-        axisLine: { lineStyle: { color: '#475569' } },
-      },
-      series: [
-        {
-          name: 'Read',
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#22c55e', width: 2 },
-          data: points.map((point) => point.data?.io?.read_bytes_per_sec ?? null),
-        },
-        {
-          name: 'Write',
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#f97316', width: 2 },
-          data: points.map((point) => point.data?.io?.write_bytes_per_sec ?? null),
-        },
-      ],
-    }
-  }
-
-  if (type === 'perf_events') {
-    const unit = getPerfEventUnit(points, perfEvent)
-    return {
-      ...baseOptions,
-      legend: {
-        data: [perfEvent],
-        textStyle: { color: '#e2e8f0' },
-      },
-      yAxis: {
-        type: 'value',
-        name: unit || '',
-        axisLabel: {
-          color: '#e2e8f0',
-          margin: 10,
-          formatter: (value) => formatPerfValue(value, unit),
-        },
-        splitLine: { lineStyle: { color: '#334155' } },
-        axisLine: { lineStyle: { color: '#475569' } },
-      },
-      series: [
-        {
-          name: perfEvent,
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#38bdf8', width: 2 },
-          data: points.map((point) => getPerfEventValue(point, perfEvent)),
-        },
-      ],
-    }
-  }
-
-  if (type === 'memory_bandwidth') {
-    return {
-      ...baseOptions,
-      legend: {
-        data: ['Page I/O', 'Swap I/O'],
-        textStyle: { color: '#e2e8f0' },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { formatter: (val) => formatBytes(val) + '/s', color: '#e2e8f0', margin: 10 },
-        splitLine: { lineStyle: { color: '#334155' } },
-        axisLine: { lineStyle: { color: '#475569' } },
-      },
-      series: [
-        {
-          name: 'Page I/O',
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#22c55e', width: 2 },
-          data: points.map((point) => point.data?.page_io_bytes_per_sec ?? null),
-        },
-        {
-          name: 'Swap I/O',
-          type: 'line',
-          showSymbol: false,
-          lineStyle: { color: '#f59e0b', width: 2 },
-          data: points.map((point) => point.data?.swap_io_bytes_per_sec ?? null),
-        },
-      ],
-    }
-  }
-
-  return {
-    ...baseOptions,
-    yAxis: {
-      type: 'value',
-      axisLabel: { color: '#e2e8f0' },
-      splitLine: { lineStyle: { color: '#334155' } },
-      axisLine: { lineStyle: { color: '#475569' } },
-    },
-    series: [
-      {
-        name: label,
-        type: 'line',
-        showSymbol: false,
-        lineStyle: { color: '#3b82f6', width: 2 },
-        data: points.map((point) => point.data?.value ?? null),
-      },
-    ],
+  switch (type) {
+    case 'cpu':
+      return buildCpuHistoryChart(points, label)
+    case 'memory':
+      return buildMemoryHistoryChart(points, label)
+    case 'network':
+      return buildNetworkHistoryChart(points)
+    case 'disk':
+      return buildDiskHistoryChart(points)
+    case 'perf_events':
+      return buildPerfEventsHistoryChart(points, perfEvent, getPerfEventValue, getPerfEventUnit)
+    case 'memory_bandwidth':
+      return buildMemoryBandwidthHistoryChart(points)
+    default:
+      return buildDefaultHistoryChart(points, label)
   }
 }
 

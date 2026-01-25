@@ -1,9 +1,13 @@
-"""Service for persisting metrics snapshots to the database."""
+"""Service for persisting metrics snapshots to the database.
+
+This module provides functions for saving, querying, and comparing metrics data.
+It re-exports aggregation utilities from metrics_aggregation for backward compatibility.
+"""
 
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +15,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal
 from app.models.metrics import MetricsSnapshot
 
+# Re-export aggregation utilities for backward compatibility
+from app.services.metrics_aggregation import (
+    aggregate_values,
+    average_primary,
+    calculate_change_percent,
+    downsample_snapshots,
+    extract_primary_value,
+    is_number,
+)
+
 logger = logging.getLogger(__name__)
+
+# Backward compatibility aliases (private functions)
+_is_number = is_number
+_aggregate_values = aggregate_values
+_extract_primary_value = extract_primary_value
+_average_primary = average_primary
+_downsample_snapshots = downsample_snapshots
+
+
+# =============================================================================
+# Interval Resolution
+# =============================================================================
 
 _INTERVAL_SECONDS = {
     "5s": 5,
@@ -19,6 +45,15 @@ _INTERVAL_SECONDS = {
     "5m": 300,
     "1h": 3600,
 }
+
+METRIC_TYPES = (
+    "cpu",
+    "memory",
+    "network",
+    "disk",
+    "perf_events",
+    "memory_bandwidth",
+)
 
 
 def resolve_interval(
@@ -55,84 +90,9 @@ def resolve_interval(
     return "1h", _INTERVAL_SECONDS["1h"]
 
 
-def _is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-def _aggregate_values(values: List[Any]) -> Any:
-    filtered = [value for value in values if value is not None]
-    if not filtered:
-        return None
-
-    if all(_is_number(value) for value in filtered):
-        return sum(filtered) / len(filtered)
-
-    if all(isinstance(value, dict) for value in filtered):
-        keys = set().union(*(value.keys() for value in filtered))
-        return {key: _aggregate_values([value.get(key) for value in filtered]) for key in keys}
-
-    if all(isinstance(value, list) for value in filtered):
-        lengths = {len(value) for value in filtered}
-        if len(lengths) == 1 and all(
-            _is_number(item) for value in filtered for item in value
-        ):
-            length = lengths.pop()
-            return [
-                sum(value[index] for value in filtered) / len(filtered)
-                for index in range(length)
-            ]
-        return filtered[0]
-
-    return filtered[0]
-
-
-def _extract_primary_value(metric_type: str, metric_data: Dict[str, Any]) -> Optional[float]:
-    if metric_type in {"cpu", "memory"}:
-        value = metric_data.get("usage_percent")
-        return float(value) if _is_number(value) else None
-    if metric_type == "network":
-        sent = metric_data.get("bytes_sent_per_sec")
-        recv = metric_data.get("bytes_recv_per_sec")
-        if _is_number(sent) and _is_number(recv):
-            return float(sent + recv)
-        if _is_number(sent):
-            return float(sent)
-        if _is_number(recv):
-            return float(recv)
-        return None
-    if metric_type == "disk":
-        io_data = metric_data.get("io") or {}
-        read = io_data.get("read_bytes_per_sec")
-        write = io_data.get("write_bytes_per_sec")
-        if _is_number(read) and _is_number(write):
-            return float(read + write)
-        if _is_number(read):
-            return float(read)
-        if _is_number(write):
-            return float(write)
-        return None
-    if metric_type == "perf_events":
-        events = metric_data.get("events") or {}
-        cpu_clock = events.get("cpu-clock", {}).get("value")
-        return float(cpu_clock) if _is_number(cpu_clock) else None
-    if metric_type == "memory_bandwidth":
-        value = metric_data.get("page_io_bytes_per_sec")
-        return float(value) if _is_number(value) else None
-    return None
-
-
-def _average_primary(metric_type: str, snapshots: Iterable[MetricsSnapshot]) -> Optional[float]:
-    values: List[float] = []
-    for snapshot in snapshots:
-        if snapshot.metric_data is None:
-            continue
-        value = _extract_primary_value(metric_type, snapshot.metric_data)
-        if value is not None:
-            values.append(value)
-    if not values:
-        return None
-    return sum(values) / len(values)
-
+# =============================================================================
+# Metric Row Extraction
+# =============================================================================
 
 def _extract_metric_rows(
     snapshot_data: Dict[str, Any],
@@ -146,9 +106,8 @@ def _extract_metric_rows(
     else:
         timestamp = datetime.utcnow()
 
-    metric_types = ["cpu", "memory", "network", "disk", "perf_events", "memory_bandwidth"]
     rows = []
-    for metric_type in metric_types:
+    for metric_type in METRIC_TYPES:
         metric_data = snapshot_data.get(metric_type)
         if metric_data is not None:
             rows.append((metric_type, metric_data))
@@ -156,39 +115,23 @@ def _extract_metric_rows(
     return timestamp, rows
 
 
-def _downsample_snapshots(
-    snapshots: List[MetricsSnapshot],
-    interval_seconds: int,
-    metric_type: str,
+def _build_snapshots(
+    timestamp: datetime,
+    rows: List[Tuple[str, Dict[str, Any]]],
 ) -> List[MetricsSnapshot]:
-    if interval_seconds <= 0 or not snapshots:
-        return snapshots
-
-    buckets: Dict[int, List[MetricsSnapshot]] = {}
-    for snapshot in snapshots:
-        timestamp = snapshot.timestamp
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
-        bucket_key = int(timestamp.timestamp() // interval_seconds)
-        buckets.setdefault(bucket_key, []).append(snapshot)
-
-    aggregated: List[MetricsSnapshot] = []
-    for bucket_key in sorted(buckets.keys()):
-        bucket = buckets[bucket_key]
-        bucket_time = datetime.fromtimestamp(
-            bucket_key * interval_seconds, tz=timezone.utc
+    return [
+        MetricsSnapshot(
+            timestamp=timestamp,
+            metric_type=metric_type,
+            metric_data=metric_data,
         )
-        metric_data = _aggregate_values([snap.metric_data for snap in bucket]) or {}
-        aggregated.append(
-            MetricsSnapshot(
-                timestamp=bucket_time,
-                metric_type=metric_type,
-                metric_data=metric_data,
-            )
-        )
+        for metric_type, metric_data in rows
+    ]
 
-    return aggregated
 
+# =============================================================================
+# Batch Writer
+# =============================================================================
 
 class MetricsBatchWriter:
     """Batch writer for metrics snapshots."""
@@ -246,14 +189,7 @@ class MetricsBatchWriter:
 
         snapshots: List[MetricsSnapshot] = []
         for timestamp, rows in pending:
-            for metric_type, metric_data in rows:
-                snapshots.append(
-                    MetricsSnapshot(
-                        timestamp=timestamp,
-                        metric_type=metric_type,
-                        metric_data=metric_data,
-                    )
-                )
+            snapshots.extend(_build_snapshots(timestamp, rows))
 
         try:
             async with AsyncSessionLocal() as session:
@@ -285,6 +221,10 @@ class MetricsBatchWriter:
         if pending:
             await self._flush(pending)
 
+
+# =============================================================================
+# Persistence Functions
+# =============================================================================
 
 async def save_metrics_snapshot(
     timestamp: datetime,
@@ -337,28 +277,20 @@ async def save_all_metrics(
     if not rows:
         return
 
+    snapshots = _build_snapshots(timestamp, rows)
     if session:
-        for metric_type, metric_data in rows:
-            snapshot = MetricsSnapshot(
-                timestamp=timestamp,
-                metric_type=metric_type,
-                metric_data=metric_data,
-            )
-            session.add(snapshot)
+        session.add_all(snapshots)
         await session.flush()
     else:
         async with AsyncSessionLocal() as db_session:
-            for metric_type, metric_data in rows:
-                snapshot = MetricsSnapshot(
-                    timestamp=timestamp,
-                    metric_type=metric_type,
-                    metric_data=metric_data,
-                )
-                db_session.add(snapshot)
-
+            db_session.add_all(snapshots)
             await db_session.commit()
             logger.debug(f"Saved metrics snapshot for timestamp {timestamp}")
 
+
+# =============================================================================
+# Query Functions
+# =============================================================================
 
 async def query_metrics_history(
     metric_type: str,
@@ -408,68 +340,32 @@ async def query_metrics_history(
     return snapshots, interval_label
 
 
-async def compare_metrics_history(
-    metric_type: str,
+def _resolve_comparison_interval(
     start_time: datetime,
     end_time: datetime,
-    compare_shift: timedelta,
-    limit: int = 1000,
-    interval: Optional[str] = None,
-    session: Optional[AsyncSession] = None,
-) -> Tuple[List[MetricsSnapshot], List[MetricsSnapshot], Optional[str], Dict[str, Optional[float]]]:
-    comparison_start = start_time - compare_shift
-    comparison_end = end_time - compare_shift
-
-    current_snapshots, interval_label = await query_metrics_history(
-        metric_type=metric_type,
-        start_time=start_time,
-        end_time=end_time,
-        limit=limit,
-        interval=interval,
-        session=session,
-    )
-
-    comparison_snapshots, _ = await query_metrics_history(
-        metric_type=metric_type,
-        start_time=comparison_start,
-        end_time=comparison_end,
-        limit=limit,
-        interval=interval,
-        session=session,
-    )
-
-    current_avg = _average_primary(metric_type, current_snapshots)
-    comparison_avg = _average_primary(metric_type, comparison_snapshots)
-    if comparison_avg is None or comparison_avg == 0:
-        change_percent = None
-    elif current_avg is None:
-        change_percent = None
-    else:
-        change_percent = (current_avg - comparison_avg) / comparison_avg * 100
-
-    summary = {
-        "current_avg": current_avg,
-        "comparison_avg": comparison_avg,
-        "change_percent": change_percent,
-    }
-
-    return current_snapshots, comparison_snapshots, interval_label, summary
+    interval: Optional[str],
+) -> Tuple[Optional[str], Optional[str]]:
+    interval_label, _ = resolve_interval(start_time, end_time, interval)
+    interval_value = interval
+    if interval is not None and interval.lower() == "auto":
+        interval_value = interval_label
+    return interval_label, interval_value
 
 
-async def compare_metrics_custom_range(
+async def _compare_metric_ranges(
+    *,
     metric_type: str,
     current_start: datetime,
     current_end: datetime,
     comparison_start: datetime,
     comparison_end: datetime,
-    limit: int = 1000,
-    interval: Optional[str] = None,
-    session: Optional[AsyncSession] = None,
+    limit: int,
+    interval: Optional[str],
+    session: Optional[AsyncSession],
 ) -> Tuple[List[MetricsSnapshot], List[MetricsSnapshot], Optional[str], Dict[str, Optional[float]]]:
-    interval_label, _ = resolve_interval(current_start, current_end, interval)
-    interval_value = interval
-    if interval is not None and interval.lower() == "auto":
-        interval_value = interval_label
+    interval_label, interval_value = _resolve_comparison_interval(
+        current_start, current_end, interval
+    )
 
     current_snapshots, _ = await query_metrics_history(
         metric_type=metric_type,
@@ -491,12 +387,7 @@ async def compare_metrics_custom_range(
 
     current_avg = _average_primary(metric_type, current_snapshots)
     comparison_avg = _average_primary(metric_type, comparison_snapshots)
-    if comparison_avg is None or comparison_avg == 0:
-        change_percent = None
-    elif current_avg is None:
-        change_percent = None
-    else:
-        change_percent = (current_avg - comparison_avg) / comparison_avg * 100
+    change_percent = calculate_change_percent(current_avg, comparison_avg)
 
     summary = {
         "current_avg": current_avg,
@@ -505,6 +396,51 @@ async def compare_metrics_custom_range(
     }
 
     return current_snapshots, comparison_snapshots, interval_label, summary
+
+
+async def compare_metrics_history(
+    metric_type: str,
+    start_time: datetime,
+    end_time: datetime,
+    compare_shift: timedelta,
+    limit: int = 1000,
+    interval: Optional[str] = None,
+    session: Optional[AsyncSession] = None,
+) -> Tuple[List[MetricsSnapshot], List[MetricsSnapshot], Optional[str], Dict[str, Optional[float]]]:
+    comparison_start = start_time - compare_shift
+    comparison_end = end_time - compare_shift
+    return await _compare_metric_ranges(
+        metric_type=metric_type,
+        current_start=start_time,
+        current_end=end_time,
+        comparison_start=comparison_start,
+        comparison_end=comparison_end,
+        limit=limit,
+        interval=interval,
+        session=session,
+    )
+
+
+async def compare_metrics_custom_range(
+    metric_type: str,
+    current_start: datetime,
+    current_end: datetime,
+    comparison_start: datetime,
+    comparison_end: datetime,
+    limit: int = 1000,
+    interval: Optional[str] = None,
+    session: Optional[AsyncSession] = None,
+) -> Tuple[List[MetricsSnapshot], List[MetricsSnapshot], Optional[str], Dict[str, Optional[float]]]:
+    return await _compare_metric_ranges(
+        metric_type=metric_type,
+        current_start=current_start,
+        current_end=current_end,
+        comparison_start=comparison_start,
+        comparison_end=comparison_end,
+        limit=limit,
+        interval=interval,
+        session=session,
+    )
 
 
 async def get_latest_metrics(

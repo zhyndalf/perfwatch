@@ -1,5 +1,7 @@
 """History API endpoints for querying historical metrics data."""
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +20,153 @@ from app.utils.validators import validate_compare_to, validate_metric_type, vali
 
 
 router = APIRouter(prefix="/api/history", tags=["history"])
+
+
+# Helper data classes for comparison operations
+class ComparisonParams:
+    """Parameters for a comparison query."""
+
+    def __init__(
+        self,
+        current_start: datetime,
+        current_end: datetime,
+        comparison_start: datetime,
+        comparison_end: datetime,
+        period_label: str,
+        compare_label: str,
+        compare_shift: Optional[timedelta] = None,
+    ):
+        self.current_start = current_start
+        self.current_end = current_end
+        self.comparison_start = comparison_start
+        self.comparison_end = comparison_end
+        self.period_label = period_label
+        self.compare_label = compare_label
+        self.compare_shift = compare_shift
+
+
+def _validate_custom_comparison(
+    start_time_1: Optional[datetime],
+    end_time_1: Optional[datetime],
+    start_time_2: Optional[datetime],
+    end_time_2: Optional[datetime],
+) -> ComparisonParams:
+    """Validate and prepare custom comparison parameters.
+
+    Raises:
+        HTTPException: If validation fails
+    """
+    if not all(p is not None for p in [start_time_1, end_time_1, start_time_2, end_time_2]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_time_1, end_time_1, start_time_2, end_time_2 are required for custom comparison",
+        )
+    validate_time_range(start_time_1, end_time_1)
+    validate_time_range(start_time_2, end_time_2)
+    if (end_time_1 - start_time_1) != (end_time_2 - start_time_2):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Custom comparison periods must have the same duration",
+        )
+    return ComparisonParams(
+        current_start=start_time_1,
+        current_end=end_time_1,
+        comparison_start=start_time_2,
+        comparison_end=end_time_2,
+        period_label="custom",
+        compare_label="custom",
+    )
+
+
+def _validate_relative_comparison(
+    period: Optional[str],
+    compare_to: Optional[str],
+) -> ComparisonParams:
+    """Validate and prepare relative comparison parameters.
+
+    Raises:
+        HTTPException: If validation fails
+    """
+    if period is None or compare_to is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="period and compare_to are required for relative comparison",
+        )
+    period = period.lower()
+    compare_to = compare_to.lower()
+    validate_period(period)
+    validate_compare_to(compare_to)
+
+    now = datetime.now(timezone.utc)
+    delta = {
+        "hour": timedelta(hours=1),
+        "day": timedelta(days=1),
+        "week": timedelta(days=7),
+    }.get(period, timedelta(days=1))
+
+    compare_shift = timedelta(days=1) if compare_to == "yesterday" else timedelta(days=7)
+    current_start = now - delta
+    current_end = now
+
+    return ComparisonParams(
+        current_start=current_start,
+        current_end=current_end,
+        comparison_start=current_start - compare_shift,
+        comparison_end=current_end - compare_shift,
+        period_label=period,
+        compare_label=compare_to,
+        compare_shift=compare_shift,
+    )
+
+
+def _validate_interval(start: datetime, end: datetime, interval: Optional[str]) -> Optional[str]:
+    """Validate and resolve interval, raising HTTPException on error."""
+    try:
+        interval_label, _ = resolve_interval(start, end, interval)
+        return interval_label
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+def _build_comparison_response(
+    metric_type: str,
+    params: ComparisonParams,
+    current_snapshots: list,
+    comparison_snapshots: list,
+    interval_used: Optional[str],
+    interval_label: Optional[str],
+    summary: dict,
+) -> ComparisonResponse:
+    """Build the comparison response from query results."""
+    current_points = [
+        HistoryDataPoint(timestamp=s.timestamp, data=s.metric_data)
+        for s in current_snapshots
+    ]
+    comparison_points = [
+        HistoryDataPoint(timestamp=s.timestamp, data=s.metric_data)
+        for s in comparison_snapshots
+    ]
+
+    return ComparisonResponse(
+        metric_type=metric_type,
+        period=params.period_label,
+        compare_to=params.compare_label,
+        interval=interval_used or interval_label,
+        current=ComparisonSeries(
+            start_time=params.current_start,
+            end_time=params.current_end,
+            data_points=current_points,
+        ),
+        comparison=ComparisonSeries(
+            start_time=params.comparison_start,
+            end_time=params.comparison_end,
+            data_points=comparison_points,
+        ),
+        summary=ComparisonSummary(**summary),
+    )
 
 
 class HistoryDataPoint(BaseModel):
@@ -172,37 +321,18 @@ async def compare_metrics(
         None, description="Custom comparison end time for period 2 (ISO 8601)"
     ),
 ) -> ComparisonResponse:
-    # Validate inputs
+    """Compare metrics between two time periods.
+
+    Supports both custom time ranges and relative comparisons (yesterday, last_week).
+    """
     validate_metric_type(metric_type)
 
     custom_params = [start_time_1, end_time_1, start_time_2, end_time_2]
     has_custom_range = any(param is not None for param in custom_params)
+
     if has_custom_range:
-        if not all(param is not None for param in custom_params):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="start_time_1, end_time_1, start_time_2, end_time_2 are required for custom comparison",
-            )
-        validate_time_range(start_time_1, end_time_1)
-        validate_time_range(start_time_2, end_time_2)
-        if (end_time_1 - start_time_1) != (end_time_2 - start_time_2):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Custom comparison periods must have the same duration",
-            )
-        period_label = "custom"
-        compare_label = "custom"
-        current_start = start_time_1
-        current_end = end_time_1
-        comparison_start = start_time_2
-        comparison_end = end_time_2
-        try:
-            interval_label, _ = resolve_interval(current_start, current_end, interval)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-            ) from exc
+        params = _validate_custom_comparison(start_time_1, end_time_1, start_time_2, end_time_2)
+        interval_label = _validate_interval(params.current_start, params.current_end, interval)
         (
             current_snapshots,
             comparison_snapshots,
@@ -210,86 +340,35 @@ async def compare_metrics(
             summary,
         ) = await compare_metrics_custom_range(
             metric_type=metric_type,
-            current_start=current_start,
-            current_end=current_end,
-            comparison_start=comparison_start,
-            comparison_end=comparison_end,
+            current_start=params.current_start,
+            current_end=params.current_end,
+            comparison_start=params.comparison_start,
+            comparison_end=params.comparison_end,
             limit=limit,
             interval=interval,
             session=db,
         )
     else:
-        if period is None or compare_to is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="period and compare_to are required for relative comparison",
-            )
-        period = period.lower()
-        compare_to = compare_to.lower()
-        validate_period(period)
-        validate_compare_to(compare_to)
-
-        now = datetime.now(timezone.utc)
-        if period == "hour":
-            delta = timedelta(hours=1)
-        elif period == "day":
-            delta = timedelta(days=1)
-        else:
-            delta = timedelta(days=7)
-
-        if compare_to == "yesterday":
-            compare_shift = timedelta(days=1)
-        else:
-            compare_shift = timedelta(days=7)
-
-        current_start = now - delta
-        current_end = now
-
-        try:
-            interval_label, _ = resolve_interval(current_start, current_end, interval)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-            ) from exc
-
+        params = _validate_relative_comparison(period, compare_to)
+        interval_label = _validate_interval(params.current_start, params.current_end, interval)
         current_snapshots, comparison_snapshots, interval_used, summary = (
             await compare_metrics_history(
                 metric_type=metric_type,
-                start_time=current_start,
-                end_time=current_end,
-                compare_shift=compare_shift,
+                start_time=params.current_start,
+                end_time=params.current_end,
+                compare_shift=params.compare_shift,
                 limit=limit,
                 interval=interval,
                 session=db,
             )
         )
-        period_label = period
-        compare_label = compare_to
 
-    current_points = [
-        HistoryDataPoint(timestamp=s.timestamp, data=s.metric_data)
-        for s in current_snapshots
-    ]
-    comparison_points = [
-        HistoryDataPoint(timestamp=s.timestamp, data=s.metric_data)
-        for s in comparison_snapshots
-    ]
-
-    return ComparisonResponse(
+    return _build_comparison_response(
         metric_type=metric_type,
-        period=period_label,
-        compare_to=compare_label,
-        interval=interval_used or interval_label,
-        current=ComparisonSeries(
-            start_time=current_start,
-            end_time=current_end,
-            data_points=current_points,
-        ),
-        comparison=ComparisonSeries(
-            start_time=comparison_start if has_custom_range else current_start - compare_shift,
-            end_time=comparison_end if has_custom_range else current_end - compare_shift,
-            data_points=comparison_points,
-        ),
-        summary=ComparisonSummary(**summary),
+        params=params,
+        current_snapshots=current_snapshots,
+        comparison_snapshots=comparison_snapshots,
+        interval_used=interval_used,
+        interval_label=interval_label,
+        summary=summary,
     )
