@@ -181,6 +181,7 @@ import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { useMetricsStore } from '@/stores/metrics'
+import { formatNumber, formatBytes, formatKB, formatThroughputLabel, formatPerfValue } from '@/utils/formatters'
 
 use([GridComponent, TooltipComponent, LegendComponent, TitleComponent, LineChart, BarChart, CanvasRenderer])
 
@@ -481,50 +482,4 @@ const swapOptions = computed(() => ({
     },
   ],
 }))
-
-function formatNumber(value, decimals = 1) {
-  if (value === null || value === undefined) return null
-  return Number(value).toFixed(decimals)
-}
-
-function formatPerfValue(entry) {
-  if (!entry || entry.value === null || entry.value === undefined) return 'N/A'
-  const value = Number(entry.value)
-  if (Number.isNaN(value)) return 'N/A'
-  const decimals = Number.isInteger(value) ? 0 : 2
-  const unit = entry.unit ? ` ${entry.unit}` : ''
-  return `${value.toFixed(decimals)}${unit}`
-}
-
-function formatBytes(value) {
-  if (value === null || value === undefined) return 'N/A'
-  const bytes = Number(value)
-  if (Number.isNaN(bytes)) return 'N/A'
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const num = bytes / 1024 ** i
-  return `${num.toFixed(num >= 10 ? 0 : 1)} ${units[i]}`
-}
-
-function formatThroughput(value) {
-  if (value === null || value === undefined) return '0 B/s'
-  return `${formatBytes(value)}/s`
-}
-
-function formatThroughputLabel(value) {
-  const formatted = formatBytes(value)
-  if (formatted === 'N/A') return formatted
-  return formatted.replace(' ', '') + '/s'
-}
-
-function formatKB(value) {
-  if (value === null || value === undefined) return 'N/A'
-  const kb = Number(value)
-  if (Number.isNaN(kb)) return 'N/A'
-  if (kb === 0) return '0 KB'
-  if (kb < 1024) return kb.toFixed(1) + ' KB'
-  if (kb < 1024 * 1024) return (kb / 1024).toFixed(1) + ' MB'
-  return (kb / (1024 * 1024)).toFixed(1) + ' GB'
-}
 </script>
